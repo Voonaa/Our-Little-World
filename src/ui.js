@@ -3,10 +3,11 @@ import { gsap } from 'gsap';
 import { audioInstance } from './audio.js';
 
 export class UIManager {
-  constructor(sceneManager, lightingManager, particlesManager) {
+  constructor(sceneManager, lightingManager, particlesManager, gardenManager) {
     this.sm = sceneManager;
     this.lm = lightingManager;
     this.pm = particlesManager;
+    this.gm = gardenManager;
 
     this.musicToggle = document.getElementById('music-toggle');
     this.splashScreen = document.getElementById('splash-screen');
@@ -26,47 +27,126 @@ export class UIManager {
     this.mouse = new THREE.Vector2();
     this.hoveredNode = null;
 
-    // Define 4 interactive memories
-    this.memories = [
+    // Define 7 monthly timeline flowers
+    this.flowerTimeline = [
       {
         id: 0,
-        title: "First Day We Met",
-        date: "June 26, 2024",
-        desc: "Under the shade of the old willow, we talked for hours about everything and nothing. It felt like time stood still, and the rest of the world just faded away.",
-        pos: { x: -3.5, y: 4.8, z: 12.0 }, // near the bridge
-        color: '#ff94b8', // Pink
-        illustrate: (ctx, w, h) => this.drawMeetIllustration(ctx, w, h)
+        title: "The Spark of Us",
+        date: "December 25, 2025",
+        desc: "Agus in Pamulang, South Tangerang. Cesya in Batam Center. 900 kilometers apart, but our story started with a single, undeniable spark. We chose to build our little world.",
+        pos: { x: -16.0, y: 3.02, z: -0.2 },
+        color: '#ff3366',
+        illustrate: (ctx, w, h) => this.drawSparkIllustration(ctx, w, h)
       },
       {
         id: 1,
-        title: "Sunset Promises",
-        date: "September 15, 2024",
-        desc: "Watching the sun slide beneath the clouds. We promised each other that no matter where our lives drifted, we would always build a home in each other's hearts.",
-        pos: { x: 12.0, y: 4.8, z: 7.0 }, // edge of island
-        color: '#ffb84d', // Orange
-        illustrate: (ctx, w, h) => this.drawSunsetIllustration(ctx, w, h)
+        title: "First Month Shared",
+        date: "January 25, 2026",
+        desc: "Late night calls, screen-sharing our favorite movies, and sipping coffee 'together' across the ocean. We learned each other's schedules and made distance our normal.",
+        pos: { x: -13.0, y: 3.02, z: 1.2 },
+        color: '#ff66cc',
+        illustrate: (ctx, w, h) => this.drawCoffeeIllustration(ctx, w, h)
       },
       {
         id: 2,
-        title: "Cozy Hearth Nights",
-        date: "December 24, 2024",
-        desc: "Warm tea, a crackling fire, and a soft knitted blanket. The storms outside couldn't touch the warmth we built together in our little corner of the universe.",
-        pos: { x: 0.0, y: 4.8, z: 3.5 }, // cottage porch
-        color: '#ffdf4d', // Yellow
-        illustrate: (ctx, w, h) => this.drawHearthIllustration(ctx, w, h)
+        title: "Our First Valentine",
+        date: "February 25, 2026",
+        desc: "Couriers delivering handwritten letters and matching teddy bears. Seeing you smile on video call made every kilometer of distance worth it. Distance is just a test of time.",
+        pos: { x: -20.0, y: 3.02, z: -5.0 },
+        color: '#ffcc00',
+        illustrate: (ctx, w, h) => this.drawHeartParcelIllustration(ctx, w, h)
       },
       {
         id: 3,
-        title: "Under The Stars",
-        date: "April 18, 2025",
-        desc: "Laying on the grass, naming the constellations we invented ourselves. You said my smile was brighter than the Milky Way. I believed you.",
-        pos: { x: -10.0, y: 7.2, z: -8.0 }, // high cliff back tree
-        color: '#7bc8f6', // Blue
-        illustrate: (ctx, w, h) => this.drawStarsIllustration(ctx, w, h)
+        title: "Overcoming the Rain",
+        date: "March 25, 2026",
+        desc: "Stormy nights in South Tangerang. We stayed on the phone for hours listening to the rain static together. Knowing you were listening made the dark sky feel peaceful.",
+        pos: { x: 12.0, y: 2.07, z: 2.8 },
+        color: '#ff6600',
+        illustrate: (ctx, w, h) => this.drawRainIllustration(ctx, w, h)
+      },
+      {
+        id: 4,
+        title: "Midnight Constellations",
+        date: "April 25, 2026",
+        desc: "Talking about our future house, naming our future cats, and outlining the garden we will plant together. Our dreams became the stars mapping out where we are going.",
+        pos: { x: 17.5, y: 2.07, z: 2.5 },
+        color: '#33ccff',
+        illustrate: (ctx, w, h) => this.drawConstellationIllustration(ctx, w, h)
+      },
+      {
+        id: 5,
+        title: "Anniversary Anthems",
+        date: "May 25, 2025",
+        desc: "Bookmarking flights and making packing lists in our minds. The sweet countdown of planning to meet. The distance is long, but the destination is you.",
+        pos: { x: 14.5, y: 2.07, z: -1.5 },
+        color: '#cc33ff',
+        illustrate: (ctx, w, h) => this.drawFlightIllustration(ctx, w, h)
+      },
+      {
+        id: 6,
+        title: "Six Months of Love",
+        date: "June 25, 2026",
+        desc: "June 26, 2026. Here we stand. Half a year of holding on, trusting, and growing. Our Bridge of Love is 60% built, extending stronger every month. The bridge is writing our future.",
+        pos: { x: 9.8, y: 2.07, z: 5.5 },
+        color: '#33ffaa',
+        illustrate: (ctx, w, h) => this.drawBridgeIllustration(ctx, w, h)
       }
     ];
 
-    this.memoryOrbs = [];
+    // Define 6 cinematic chapters configurations
+    this.chapters = [
+      {
+        id: 0,
+        title: "Chapter 0: The Beginning",
+        subtitle: "Separated by 900km, our worlds float in the same sky...",
+        camPos: { x: 0, y: 55, z: 65 },
+        camTarget: { x: 0, y: 2, z: 0 },
+        weather: 'dawn'
+      },
+      {
+        id: 1,
+        title: "Chapter 1: Flower Garden",
+        subtitle: "Every month we grow, a new flower blooms in our timeline...",
+        camPos: { x: 13, y: 6.5, z: 12.5 },
+        camTarget: { x: 12, y: 2.5, z: 3.5 },
+        weather: 'sunny'
+      },
+      {
+        id: 2,
+        title: "Chapter 2: Memory House",
+        subtitle: "A cozy cottage sitting on Agus's island, keeping the hearth warm...",
+        camPos: { x: -11.5, y: 5.5, z: 2.5 },
+        camTarget: { x: -14.8, y: 4.2, z: -2.8 },
+        weather: 'golden'
+      },
+      {
+        id: 3,
+        title: "Chapter 3: The Two Islands",
+        subtitle: "Pamulang and Batam Center. Two hearts, two sanctuaries...",
+        camPos: { x: -28, y: 22, z: 38 },
+        camTarget: { x: 0, y: 3, z: 0 },
+        weather: 'fog'
+      },
+      {
+        id: 4,
+        title: "Chapter 4: Bridge of Love",
+        subtitle: "Our connection is 60% built. Growing closer every day...",
+        camPos: { x: -1.2, y: 5.0, z: 8.5 },
+        camTarget: { x: 0, y: 2.5, z: 0 },
+        weather: 'rain'
+      },
+      {
+        id: 5,
+        title: "Chapter 5: Future Dreams",
+        subtitle: "Under the Indonesian stars, we write the rest of our map...",
+        camPos: { x: 0, y: 9, z: 22 },
+        camTarget: { x: 0, y: 24, z: -32 }, // look up to sky constellations
+        weather: 'stars'
+      }
+    ];
+
+    this.activeChapterIdx = 0;
     this.discoveredCount = 0;
     this.discoveredIds = new Set();
     this.isCinematicActive = false;
@@ -75,149 +155,84 @@ export class UIManager {
   }
 
   init() {
-    this.createMemoryOrbsIn3D();
     this.bindEvents();
     this.simulateLoading();
   }
 
-  createMemoryOrbsIn3D() {
-    this.memories.forEach(mem => {
-      // Group containing a glowing core and a larger soft halo
-      const orbGroup = new THREE.Group();
-      orbGroup.position.set(mem.pos.x, mem.pos.y, mem.pos.z);
-      orbGroup.userData = { memoryId: mem.id };
-
-      // Core sphere
-      const coreGeo = new THREE.SphereGeometry(0.24, 16, 16);
-      const coreMat = new THREE.MeshBasicMaterial({
-        color: mem.color,
-        transparent: true,
-        opacity: 0.9
-      });
-      const core = new THREE.Mesh(coreGeo, coreMat);
-      orbGroup.add(core);
-
-      // Soft outer glowing halo
-      const haloGeo = new THREE.SphereGeometry(0.48, 16, 16);
-      const haloMat = new THREE.MeshBasicMaterial({
-        color: mem.color,
-        transparent: true,
-        opacity: 0.25,
-        blending: THREE.AdditiveBlending
-      });
-      const halo = new THREE.Mesh(haloGeo, haloMat);
-      orbGroup.add(halo);
-
-      // Animate halo scale continuously
-      gsap.to(halo.scale, {
-        x: 1.4, y: 1.4, z: 1.4,
-        duration: 1.5 + Math.random(),
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut'
-      });
-
-      this.sm.scene.add(orbGroup);
-      this.memoryOrbs.push(orbGroup);
-
-      // Create an HTML 2D Label that pops up on hover
-      const label = document.createElement('div');
-      label.className = 'glowing-node-label';
-      label.id = `label-node-${mem.id}`;
-      label.innerText = mem.title;
-      document.body.appendChild(label);
-      orbGroup.userData.htmlLabel = label;
-    });
-  }
-
   bindEvents() {
-    // Start button clicks
     this.startBtn.addEventListener('click', () => this.enterWorld());
 
-    // Music toggling
     this.musicToggle.addEventListener('click', () => {
       const isMuted = audioInstance.toggle();
-      if (isMuted) {
-        this.musicToggle.classList.add('muted');
-      } else {
-        this.musicToggle.classList.remove('muted');
-      }
+      if (isMuted) this.musicToggle.classList.add('muted');
+      else this.musicToggle.classList.remove('muted');
     });
 
-    // Time of day selectors
-    const timeButtons = document.querySelectorAll('.time-btn');
-    timeButtons.forEach(btn => {
+    // Wire up Weather Select Panel
+    const weatherButtons = document.querySelectorAll('.time-btn');
+    weatherButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
-        timeButtons.forEach(b => b.classList.remove('active'));
+        weatherButtons.forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
-        const theme = e.target.getAttribute('data-time');
+        const weather = e.target.getAttribute('data-time');
         
-        // Trigger smooth light transition
-        this.lm.transitionTo(theme);
-        // Trigger window intensity change
-        this.sm.scene.traverse(node => {
-          if (node.name === 'cozy-cottage' || node.type === 'Group') {
-            // Checked inside island.js updateWindowIntensity
-          }
-        });
-        
-        // Directly invoke window intensity updating from island
-        const island = this.sm.scene.children.find(c => c.type === 'Group');
-        if (island) {
-          // Trigger the update window emissive levels
-          // The island class instances aren't direct children, but the material is shared
-        }
-        
-        // Explicitly update objects in scene
-        this.pm.updateEnvironmentLights(theme);
-        
-        // We also want to manually update the window emissive levels in island.js
-        this.sm.scene.traverse(child => {
-          if (child.material && child.material.emissive && child.material.emissiveIntensity !== undefined) {
-            let targetIntensity = 0.5;
-            if (theme === 'day') targetIntensity = 0.0;
-            else if (theme === 'dusk') targetIntensity = 2.0;
-            else if (theme === 'night') targetIntensity = 3.5;
-            
-            gsap.to(child.material, {
-              emissiveIntensity: targetIntensity,
-              duration: 2.5,
-              ease: 'power2.out'
-            });
-          }
-        });
+        // Transition lighting & sound states
+        this.lm.transitionTo(weather);
+        this.pm.updateEnvironmentLights(weather);
+        this.updateWindowGlows(weather);
       });
     });
 
-    // Polaroid close button
+    // Wire up Chapter Selection Panel
+    const chapterButtons = document.querySelectorAll('.chapter-btn');
+    chapterButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = parseInt(e.target.getAttribute('data-chapter'));
+        this.jumpToChapter(id);
+      });
+    });
+
+    // Polaroid close
     this.closeMemoryBtn.addEventListener('click', () => {
       this.memoryOverlay.classList.add('hidden');
-      
-      // Release camera target and resume OrbitControls
       this.sm.controls.enabled = true;
-      gsap.to(this.sm.controls.target, { x: 0, y: 5, z: 0, duration: 1.5, ease: 'power2.out' });
       
-      // Reset cinematic bars
+      // Reset camera target
+      gsap.to(this.sm.controls.target, { x: 0, y: 4, z: 0, duration: 1.5, ease: 'power2.out' });
       document.body.classList.remove('cinematic');
     });
 
-    // 3D Raycasting interactions (Mouse moves and clicks)
     window.addEventListener('mousemove', (e) => this.onMouseMove(e));
     window.addEventListener('click', (e) => this.onMouseClick(e));
     window.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: true });
   }
 
+  // Update cottage glass windows emissive rates per weather state
+  updateWindowGlows(theme) {
+    this.sm.scene.traverse(child => {
+      if (child.material && child.material.emissive && child.material.emissiveIntensity !== undefined) {
+        let intensity = 0.5;
+        if (theme === 'sunny') intensity = 0.0;
+        else if (theme === 'golden') intensity = 2.2;
+        else if (theme === 'rain') intensity = 3.0;
+        else if (theme === 'night') intensity = 4.2;
+        else if (theme === 'stars') intensity = 4.5;
+        
+        gsap.to(child.material, { emissiveIntensity: intensity, duration: 2.2, ease: 'power2.out' });
+      }
+    });
+  }
+
   simulateLoading() {
     let progress = 0;
     const interval = setInterval(() => {
-      progress += Math.floor(Math.random() * 12) + 4;
+      progress += Math.floor(Math.random() * 10) + 5;
       if (progress >= 100) {
         progress = 100;
         clearInterval(interval);
         
-        // Show start button, hide loading bar
         this.loadingBar.style.width = '100%';
-        this.loadingText.innerText = 'World is Ready';
+        this.loadingText.innerText = 'World is Configured';
         
         gsap.to(this.loadingBar.parentElement, { opacity: 0, height: 0, duration: 0.5, delay: 0.3 });
         gsap.to(this.loadingText, { opacity: 0, duration: 0.5, delay: 0.3, onComplete: () => {
@@ -226,140 +241,144 @@ export class UIManager {
         }});
       } else {
         this.loadingBar.style.width = `${progress}%`;
-        this.loadingText.innerText = `Preparing the world... ${progress}%`;
+        this.loadingText.innerText = `Establishing connection Batam ↔ Pamulang... ${progress}%`;
       }
-    }, 150);
+    }, 120);
   }
 
   enterWorld() {
-    // 1. Play music
     audioInstance.start();
     this.musicToggle.classList.remove('muted');
-
-    // 2. Hide Splash Screen
     this.splashScreen.classList.add('fade-out');
-
-    // 3. Trigger Cinematic Camera path
     this.playCinematicIntro();
   }
 
   playCinematicIntro() {
     this.isCinematicActive = true;
-    document.body.classList.add('cinematic'); // slide in cinematic black bars
+    document.body.classList.add('cinematic');
 
-    // GSAP Timeline to sweep the camera downwards and around the cottage
     const tl = gsap.timeline({
       onComplete: () => {
-        // Intro complete: enable manual OrbitControls
         this.isCinematicActive = false;
         this.sm.controls.enabled = true;
-        document.body.classList.remove('cinematic'); // slide out black bars
+        document.body.classList.remove('cinematic');
         
-        // Fade in HUD controls
         this.hud.classList.remove('hidden');
         this.hud.classList.add('fade-in');
       }
     });
 
-    // Subtitles to print during camera movement
     const captions = document.getElementById('captions');
-    const subtitleTimeline = gsap.timeline();
+    const subTimeline = gsap.timeline();
 
-    const playSubtitle = (text, delay, duration) => {
-      subtitleTimeline.to(captions, {
-        opacity: 0,
-        duration: 0.4,
-        onComplete: () => {
-          captions.innerText = text;
-        }
-      }, delay)
-      .to(captions, { opacity: 1, duration: 0.6 })
-      .to(captions, { opacity: 0, duration: 0.5 }, `+=${duration}`);
+    const playSub = (text, delay, dur) => {
+      subTimeline.to(captions, { opacity: 0, duration: 0.3, onComplete: () => { captions.innerText = text; } }, delay)
+        .to(captions, { opacity: 1, duration: 0.5 })
+        .to(captions, { opacity: 0, duration: 0.4 }, `+=${dur}`);
     };
 
-    // Trigger subtitles sequentially
-    playSubtitle("At the edge of the sky, a sanctuary floats...", 1.0, 3.5);
-    playSubtitle("...built from shared memories and whispered promises.", 6.0, 3.5);
-    playSubtitle("Explore the glowing orbs to uncover our little moments.", 11.5, 4.0);
+    playSub("Agus in Pamulang. Cesya in Batam Center.", 0.8, 3.5);
+    playSub("900 kilometers apart, floating in the same digital sky...", 5.2, 4.0);
+    playSub("Explore the chapters and flowers to discover their stories.", 10.0, 3.8);
 
-    // Cinematic Camera Paths:
-    // Move from high dawn sky (0, 120, 150) down and rotate closer
-    tl.to(this.sm.camera.position, {
-      x: -28,
-      y: 15,
-      z: 32,
-      duration: 7.0,
-      ease: 'power2.inOut'
-    })
-    // Sweeps behind the cottage
-    .to(this.sm.camera.position, {
-      x: 18,
-      y: 8,
-      z: 22,
-      duration: 5.5,
-      ease: 'sine.inOut'
-    })
-    // Settle at the front of the bridge and pathway looking at the door
-    .to(this.sm.camera.position, {
-      x: -5,
-      y: 7.5,
-      z: 23,
-      duration: 4.5,
-      ease: 'power1.inOut'
-    });
+    // Initial cinematic sweeping camera path around both LDR islands
+    tl.to(this.sm.camera.position, { x: 0, y: 45, z: 65, duration: 6.0, ease: 'power2.inOut' })
+      .to(this.sm.camera.position, { x: -26, y: 15, z: 28, duration: 5.0, ease: 'sine.inOut' })
+      .to(this.sm.camera.position, { x: -8, y: 6.0, z: 18, duration: 4.0, ease: 'power1.inOut' });
 
-    // Animate target focus to cottage door
-    tl.to(this.sm.controls.target, {
-      x: 0,
-      y: 4.5,
-      z: 3.0,
-      duration: 17.0,
-      ease: 'sine.inOut'
-    }, 0);
+    tl.to(this.sm.controls.target, { x: -15, y: 3.5, z: -5, duration: 15.0, ease: 'sine.inOut' }, 0);
   }
 
-  // Raycast logic: project mouse coordinate to 3D nodes
+  // Jump camera directly to selected Chapter composition
+  jumpToChapter(idx) {
+    if (this.isCinematicActive || !this.sm.controls.enabled) return;
+
+    this.activeChapterIdx = idx;
+    const chap = this.chapters[idx];
+
+    // Highlight active chapter button
+    const buttons = document.querySelectorAll('.chapter-btn');
+    buttons.forEach((b, i) => {
+      if (i === idx) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+
+    // Trigger subtitles narration
+    const captions = document.getElementById('captions');
+    gsap.to(captions, {
+      opacity: 0, duration: 0.3, onComplete: () => {
+        captions.innerText = chap.subtitle;
+        gsap.to(captions, { opacity: 1, duration: 0.5 });
+      }
+    });
+
+    // Update Weather to match Chapter mood automatically
+    const targetWeatherBtn = document.querySelector(`.time-btn[data-time="${chap.weather}"]`);
+    if (targetWeatherBtn) {
+      targetWeatherBtn.click();
+    }
+
+    // Animate camera position and target
+    this.sm.controls.enabled = false;
+    gsap.to(this.sm.camera.position, {
+      x: chap.camPos.x,
+      y: chap.camPos.y,
+      z: chap.camPos.z,
+      duration: 2.2,
+      ease: 'power2.inOut'
+    });
+
+    gsap.to(this.sm.controls.target, {
+      x: chap.camTarget.x,
+      y: chap.camTarget.y,
+      z: chap.camTarget.z,
+      duration: 2.2,
+      ease: 'power2.inOut',
+      onComplete: () => {
+        this.sm.controls.enabled = true;
+      }
+    });
+  }
+
+  // Raycaster checks: Project coordinates on monthly timeline flowers
   updateRaycast() {
     if (this.isCinematicActive || !this.sm.controls.enabled) return;
 
     this.raycaster.setFromCamera(this.mouse, this.sm.camera);
-    const intersects = this.raycaster.intersectObjects(this.memoryOrbs, true);
+    // Raycast standard flower meshes
+    const intersects = this.raycaster.intersectObjects(this.gm.monthlyFlowerMeshes, true);
 
     if (intersects.length > 0) {
-      // Find the group containing the userData
       let obj = intersects[0].object;
-      while (obj.parent && !obj.userData.memoryId !== undefined && obj.userData.memoryId === undefined) {
+      while (obj.parent && obj.userData.flowerId === undefined) {
         obj = obj.parent;
       }
 
-      if (this.hoveredNode !== obj) {
-        // Out previous
+      if (this.hoveredNode !== obj && obj.userData.flowerId !== undefined) {
         if (this.hoveredNode) {
           this.hoveredNode.scale.set(1.0, 1.0, 1.0);
           this.hoveredNode.userData.htmlLabel.classList.remove('visible');
         }
 
-        // In new
         this.hoveredNode = obj;
         document.body.style.cursor = 'pointer';
         
-        // Pulse animation on hover
+        // Scale up float animation
         gsap.to(this.hoveredNode.scale, { x: 1.35, y: 1.35, z: 1.35, duration: 0.3, ease: 'back.out(2)' });
         this.hoveredNode.userData.htmlLabel.classList.add('visible');
       }
 
-      // Update HTML label coordinates based on 3D node projections
       if (this.hoveredNode) {
         const wp = new THREE.Vector3();
         this.hoveredNode.getWorldPosition(wp);
         wp.project(this.sm.camera);
 
-        const labelX = (wp.x * .5 + .5) * window.innerWidth;
-        const labelY = (-(wp.y * .5) + .5) * window.innerHeight;
+        const lx = (wp.x * 0.5 + 0.5) * window.innerWidth;
+        const ly = (-(wp.y * 0.5) + 0.5) * window.innerHeight;
         
-        const labelEl = this.hoveredNode.userData.htmlLabel;
-        labelEl.style.left = `${labelX}px`;
-        labelEl.style.top = `${labelY}px`;
+        const label = this.hoveredNode.userData.htmlLabel;
+        label.style.left = `${lx}px`;
+        label.style.top = `${ly}px`;
       }
     } else {
       if (this.hoveredNode) {
@@ -380,7 +399,6 @@ export class UIManager {
     if (e.touches.length > 0) {
       this.mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
-      // Triggers raycast check immediately
       setTimeout(() => this.onMouseClick(e), 50);
     }
   }
@@ -388,70 +406,58 @@ export class UIManager {
   onMouseClick(e) {
     if (this.isCinematicActive || !this.sm.controls.enabled || !this.hoveredNode) return;
 
-    const memId = this.hoveredNode.userData.memoryId;
-    const mem = this.memories.find(m => m.id === memId);
-    if (!mem) return;
+    const flowerId = this.hoveredNode.userData.flowerId;
+    const flower = this.flowerTimeline.find(f => f.id === flowerId);
+    if (!flower) return;
 
-    // Trigger Polaroid details card overlay
-    this.showMemoryPolaroid(mem);
+    this.showMemoryPolaroid(flower);
   }
 
-  showMemoryPolaroid(mem) {
-    // 1. Mark as Discovered
-    if (!this.discoveredIds.has(mem.id)) {
-      this.discoveredIds.add(mem.id);
+  showMemoryPolaroid(flower) {
+    if (!this.discoveredIds.has(flower.id)) {
+      this.discoveredIds.add(flower.id);
       this.discoveredCount++;
       
-      // Update tracker HUD
-      const progressPercent = (this.discoveredCount / this.memories.length) * 100;
-      document.getElementById('tracker-fill').style.width = `${progressPercent}%`;
-      document.getElementById('tracker-text').innerText = `${this.discoveredCount} / ${this.memories.length}`;
+      const percent = (this.discoveredCount / this.flowerTimeline.length) * 100;
+      document.getElementById('tracker-fill').style.width = `${percent}%`;
+      document.getElementById('tracker-text').innerText = `${this.discoveredCount} / ${this.flowerTimeline.length}`;
     }
 
-    // 2. Center camera view on node position smoothly
-    this.sm.controls.enabled = false; // Lock controls during inspection
-    document.body.classList.add('cinematic'); // slide in cinematic bars for focus
+    this.sm.controls.enabled = false;
+    document.body.classList.add('cinematic');
 
-    // GSAP animate camera focus
-    const targetCamPos = new THREE.Vector3()
+    // Pan camera to look directly down on the selected flower
+    const targetCam = new THREE.Vector3()
       .copy(this.hoveredNode.position)
       .add(new THREE.Vector3(
-        (this.sm.camera.position.x - this.hoveredNode.position.x) * 0.45,
-        2.5,
-        (this.sm.camera.position.z - this.hoveredNode.position.z) * 0.45
+        (this.sm.camera.position.x - this.hoveredNode.position.x) * 0.4,
+        2.0,
+        (this.sm.camera.position.z - this.hoveredNode.position.z) * 0.4
       ));
 
     gsap.to(this.sm.camera.position, {
-      x: targetCamPos.x,
-      y: targetCamPos.y,
-      z: targetCamPos.z,
-      duration: 1.5,
-      ease: 'power2.inOut'
+      x: targetCam.x, y: targetCam.y, z: targetCam.z,
+      duration: 1.4, ease: 'power2.inOut'
     });
 
     gsap.to(this.sm.controls.target, {
       x: this.hoveredNode.position.x,
       y: this.hoveredNode.position.y,
       z: this.hoveredNode.position.z,
-      duration: 1.5,
+      duration: 1.4,
       ease: 'power2.inOut',
       onComplete: () => {
-        // Open card details
-        this.memoryTitle.innerText = mem.title;
-        this.memoryDate.innerText = mem.date;
-        this.memoryDescription.innerText = mem.desc;
+        this.memoryTitle.innerText = flower.title;
+        this.memoryDate.innerText = flower.date;
+        this.memoryDescription.innerText = flower.desc;
 
-        // Render dynamic canvas watercolor illustration inside polaroid
-        this.renderWatercolorIllustration(mem);
-
+        this.renderWatercolorIllustration(flower);
         this.memoryOverlay.classList.remove('hidden');
       }
     });
   }
 
-  // Draws dynamic watercolor paint inside Polaroid frame
-  renderWatercolorIllustration(mem) {
-    // Create/reuse canvas illustration element
+  renderWatercolorIllustration(flower) {
     let canvas = this.illustrationContainer.querySelector('canvas');
     if (!canvas) {
       canvas = document.createElement('canvas');
@@ -459,198 +465,241 @@ export class UIManager {
       this.illustrationContainer.appendChild(canvas);
     }
     
-    const w = 320;
-    const h = 260;
-    canvas.width = w;
-    canvas.height = h;
+    const w = 320; const h = 260;
+    canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
 
-    // Run specific painting logic
-    mem.illustrate(ctx, w, h);
+    flower.illustrate(ctx, w, h);
   }
 
-  // --- Dynamic Watercolor illustration drawings ---
+  // --- HTML5 Watercolor drawings inside Polaroid frames ---
 
-  // Memory 1: Watercolor Blooming Cherry Blossom
-  drawMeetIllustration(ctx, w, h) {
-    // Base sky gradient
+  // Flower 0: Spark
+  drawSparkIllustration(ctx, w, h) {
     const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, '#fff0f3');
-    grad.addColorStop(1, '#ffe3e8');
+    grad.addColorStop(0, '#ffebeb');
+    grad.addColorStop(1, '#ffd6db');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    // Draw splatters
-    this.drawWatercolorSplatter(ctx, w/2 - 20, h/2 + 20, 50, '#ffb3c6');
-    this.drawWatercolorSplatter(ctx, w/2 + 30, h/2 - 30, 40, '#ff85a2');
+    this.drawWatercolorSplatter(ctx, w/2, h/2, 55, 'rgba(255, 51, 102, 0.45)');
+    
+    // Glowing core
+    const core = ctx.createRadialGradient(w/2, h/2, 2, w/2, h/2, 25);
+    core.addColorStop(0, '#ffffff');
+    core.addColorStop(0.5, '#ff66aa');
+    core.addColorStop(1, 'rgba(255,51,102,0)');
+    ctx.fillStyle = core;
+    ctx.beginPath(); ctx.arc(w/2, h/2, 25, 0, Math.PI*2); ctx.fill();
+  }
 
-    // Tree branch silhouette
-    ctx.strokeStyle = '#4a2c2a';
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(0, h);
-    ctx.quadraticCurveTo(w/3, h - 30, w/2 - 20, h/2 + 20);
-    ctx.quadraticCurveTo(w/2 + 10, h/2 - 10, w - 40, h/2 - 40);
-    ctx.stroke();
+  // Flower 1: Sharing Coffee Mugs
+  drawCoffeeIllustration(ctx, w, h) {
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, '#fbf8f3');
+    grad.addColorStop(1, '#eae1d4');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
 
-    // Secondary twigs
+    this.drawWatercolorSplatter(ctx, w/3, h/2 + 20, 35, '#8c6239');
+    this.drawWatercolorSplatter(ctx, w * 0.66, h/2 + 20, 35, '#8c6239');
+
+    // Coffee Mugs Silhouettes
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#6d4c2d';
+    ctx.lineWidth = 3;
+    
+    // Mug Left
+    ctx.beginPath(); ctx.roundRect(w/3 - 20, h/2 - 10, 40, 40, [4, 4, 15, 15]); ctx.fill(); ctx.stroke();
+    // Handle
+    ctx.beginPath(); ctx.arc(w/3 - 22, h/2 + 10, 8, -Math.PI/2, Math.PI/2, true); ctx.stroke();
+
+    // Mug Right
+    ctx.beginPath(); ctx.roundRect(w * 0.66 - 20, h/2 - 10, 40, 40, [4, 4, 15, 15]); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(w * 0.66 + 22, h/2 + 10, 8, -Math.PI/2, Math.PI/2, false); ctx.stroke();
+
+    // Steam
+    ctx.strokeStyle = 'rgba(140, 98, 57, 0.4)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(w/3, h - 20);
-    ctx.quadraticCurveTo(w/4, h/2 + 20, w/3 - 10, h/2);
-    ctx.moveTo(w/2 - 10, h/2 + 10);
-    ctx.quadraticCurveTo(w/2, h/2 - 40, w/2 + 40, h/2 - 60);
+    ctx.moveTo(w/3 - 5, h/2 - 20); ctx.quadraticCurveTo(w/3 - 10, h/2 - 35, w/3, h/2 - 45);
+    ctx.moveTo(w * 0.66 + 5, h/2 - 20); ctx.quadraticCurveTo(w * 0.66, h/2 - 35, w * 0.66 + 10, h/2 - 45);
+    ctx.stroke();
+  }
+
+  // Flower 2: Heart parcel
+  drawHeartParcelIllustration(ctx, w, h) {
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, '#fef0f3');
+    grad.addColorStop(1, '#ffd6e0');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    this.drawWatercolorSplatter(ctx, w/2, h/2, 45, 'rgba(255,102,204,0.3)');
+
+    // Parcel box
+    ctx.fillStyle = '#d7ccc8';
+    ctx.strokeStyle = '#8d6e63';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(w/2 - 35, h/2 - 25, 70, 50, 5);
+    ctx.fill(); ctx.stroke();
+
+    // Heart stamp
+    ctx.fillStyle = '#ff3366';
+    ctx.beginPath();
+    ctx.moveTo(w/2, h/2 - 5);
+    ctx.bezierCurveTo(w/2 - 10, h/2 - 15, w/2 - 15, h/2 + 5, w/2, h/2 + 15);
+    ctx.bezierCurveTo(w/2 + 15, h/2 + 5, w/2 + 10, h/2 - 15, w/2, h/2 - 5);
+    ctx.fill();
+  }
+
+  // Flower 3: Soft rain hitting window
+  drawRainIllustration(ctx, w, h) {
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, '#1c2833');
+    grad.addColorStop(1, '#2c3e50');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    this.drawWatercolorSplatter(ctx, w/2, h/2, 60, 'rgba(52, 152, 219, 0.25)');
+
+    // Cottage window silhouette
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(w/2 - 50, h/2 - 50, 100, 100);
+    ctx.beginPath();
+    ctx.moveTo(w/2, h/2 - 50); ctx.lineTo(w/2, h/2 + 50);
+    ctx.moveTo(w/2 - 50, h/2); ctx.lineTo(w/2 + 50, h/2);
     ctx.stroke();
 
-    // Overlay soft watercolor petals
-    for (let i = 0; i < 25; i++) {
-      const px = w/3 + Math.random() * (w * 0.6);
-      const py = h/3 + Math.random() * (h * 0.5);
-      const r = 4 + Math.random() * 8;
-      
-      ctx.fillStyle = Math.random() < 0.6 ? '#ffb3c6' : '#ff85a2';
+    // Rain lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 15; i++) {
+      const rx = Math.random() * w;
+      const ry = Math.random() * h;
       ctx.beginPath();
-      ctx.arc(px, py, r, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx - 8, ry + 25);
+      ctx.stroke();
     }
   }
 
-  // Memory 2: Sunset Silhouettes
-  drawSunsetIllustration(ctx, w, h) {
+  // Flower 4: Stars & Constellations
+  drawConstellationIllustration(ctx, w, h) {
     const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, '#ff7e5f');
-    grad.addColorStop(0.5, '#feb47b');
-    grad.addColorStop(1, '#ffebd6');
+    grad.addColorStop(0, '#040613');
+    grad.addColorStop(1, '#0e122b');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    // Watercolor clouds
-    this.drawWatercolorSplatter(ctx, w/4, h/2 - 10, 45, 'rgba(255, 255, 255, 0.4)');
-    this.drawWatercolorSplatter(ctx, w * 0.7, h/3, 55, 'rgba(255, 230, 240, 0.35)');
+    this.drawWatercolorSplatter(ctx, w/2, h/2, 50, 'rgba(135, 206, 250, 0.2)');
 
-    // Glowing sun disk
-    const sunGrad = ctx.createRadialGradient(w/2, h/2 + 10, 0, w/2, h/2 + 10, 30);
-    sunGrad.addColorStop(0, '#fff');
-    sunGrad.addColorStop(0.5, '#ffe57f');
-    sunGrad.addColorStop(1, 'rgba(254, 180, 123, 0)');
-    ctx.fillStyle = sunGrad;
-    ctx.beginPath();
-    ctx.arc(w/2, h/2 + 10, 30, 0, Math.PI * 2);
-    ctx.fill();
+    // Draw a small custom constellation
+    const starCoords = [
+      {x: w/2 - 60, y: h/2 + 30},
+      {x: w/2 - 20, y: h/2 - 20},
+      {x: w/2 + 30, y: h/2 - 10},
+      {x: w/2 + 70, y: h/2 + 40}
+    ];
 
-    // Ground hills
-    ctx.fillStyle = '#4a3b32';
+    // Constellation lines
+    ctx.strokeStyle = 'rgba(255,255,224,0.4)';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(0, h);
-    ctx.quadraticCurveTo(w/3, h - 35, w/2 - 10, h - 15);
-    ctx.quadraticCurveTo(w * 0.75, h, w, h - 25);
-    ctx.lineTo(w, h);
-    ctx.lineTo(0, h);
+    ctx.moveTo(starCoords[0].x, starCoords[0].y);
+    for (let i = 1; i < starCoords.length; i++) {
+      ctx.lineTo(starCoords[i].x, starCoords[i].y);
+    }
+    ctx.stroke();
+
+    // Star hubs
+    ctx.fillStyle = '#ffffe0';
+    starCoords.forEach(sc => {
+      ctx.beginPath(); ctx.arc(sc.x, sc.y, 4, 0, Math.PI*2); ctx.fill();
+    });
+  }
+
+  // Flower 5: Airplane flying through clouds
+  drawFlightIllustration(ctx, w, h) {
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, '#f9d5e5');
+    grad.addColorStop(1, '#eeac99');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    this.drawWatercolorSplatter(ctx, w/3, h/2, 45, 'rgba(255,255,255,0.4)');
+    this.drawWatercolorSplatter(ctx, w * 0.7, h/2 + 10, 50, 'rgba(255,255,255,0.4)');
+
+    // Airplane silhouette
+    ctx.fillStyle = '#5c4e4e';
+    ctx.beginPath();
+    ctx.moveTo(w/2 - 40, h/2 - 10);
+    ctx.quadraticCurveTo(w/2 - 10, h/2 - 15, w/2 + 30, h/2 - 5); // fuselage
+    ctx.lineTo(w/2 + 40, h/2 - 8);
+    ctx.lineTo(w/2 + 38, h/2 - 2);
+    ctx.lineTo(w/2 - 40, h/2);
     ctx.closePath();
     ctx.fill();
 
-    // Silhouettes of two figures sitting
-    ctx.fillStyle = '#1e1610';
+    // Wings
     ctx.beginPath();
-    // Person 1
-    ctx.arc(w/2 - 15, h - 25, 4, 0, Math.PI * 2); // Head
+    ctx.moveTo(w/2, h/2 - 6);
+    ctx.lineTo(w/2 - 15, h/2 - 28);
+    ctx.lineTo(w/2 - 5, h/2 - 28);
+    ctx.lineTo(w/2 + 10, h/2 - 6);
     ctx.fill();
-    ctx.fillRect(w/2 - 18, h - 21, 6, 10); // Body
-
-    // Person 2
-    ctx.beginPath();
-    ctx.arc(w/2 - 2, h - 23, 3.8, 0, Math.PI * 2); // Head
-    ctx.fill();
-    ctx.fillRect(w/2 - 5, h - 19, 6, 8); // Body
   }
 
-  // Memory 3: Cozy fireplace hearth glow
-  drawHearthIllustration(ctx, w, h) {
-    // Dark room backdrop
-    const grad = ctx.createRadialGradient(w/2, h/2 + 20, 10, w/2, h/2, 130);
-    grad.addColorStop(0, '#2e1919'); // warm center glow
-    grad.addColorStop(1, '#0e0b0e'); // dark edge
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-
-    // Draw fireplace frame silhouette
-    ctx.fillStyle = '#221915';
-    ctx.fillRect(w/2 - 60, h - 80, 120, 80);
-    ctx.fillStyle = '#0a0808';
-    ctx.fillRect(w/2 - 40, h - 60, 80, 60);
-
-    // Red-orange fire splatter glow
-    this.drawWatercolorSplatter(ctx, w/2, h - 20, 25, '#ff4500');
-    this.drawWatercolorSplatter(ctx, w/2 - 10, h - 15, 20, '#ff8c00');
-    this.drawWatercolorSplatter(ctx, w/2 + 10, h - 18, 18, '#ffd700');
-
-    // Logs
-    ctx.strokeStyle = '#3d2516';
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(w/2 - 25, h - 8);
-    ctx.lineTo(w/2 + 25, h - 18);
-    ctx.moveTo(w/2 + 25, h - 8);
-    ctx.lineTo(w/2 - 25, h - 18);
-    ctx.stroke();
-  }
-
-  // Memory 4: Starry midnight sky and stars
-  drawStarsIllustration(ctx, w, h) {
+  // Flower 6: Two islands and bridge
+  drawBridgeIllustration(ctx, w, h) {
     const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, '#020308');
-    grad.addColorStop(0.6, '#080d21');
-    grad.addColorStop(1, '#1b1b3a');
+    grad.addColorStop(0, '#ffe3e8');
+    grad.addColorStop(1, '#ffc2d1');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    // Milky way watercolor haze
-    this.drawWatercolorSplatter(ctx, w/3, h/3, 60, 'rgba(100, 150, 255, 0.15)');
-    this.drawWatercolorSplatter(ctx, w * 0.7, h/2, 50, 'rgba(230, 150, 255, 0.12)');
+    this.drawWatercolorSplatter(ctx, w/2, h/2, 50, 'rgba(255, 102, 170, 0.25)');
 
-    // Moon
-    ctx.fillStyle = '#ffffe0';
-    ctx.shadowColor = 'rgba(255,255,224, 0.4)';
-    ctx.shadowBlur = 15;
+    // Left island silhouette
+    ctx.fillStyle = '#655459';
     ctx.beginPath();
-    ctx.arc(w - 60, 60, 22, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0; // reset
-
-    // Moon bite (crescent overlay)
-    ctx.fillStyle = '#020308';
-    ctx.beginPath();
-    ctx.arc(w - 70, 52, 22, 0, Math.PI * 2);
+    ctx.arc(w/4 - 10, h - 20, 45, 0, Math.PI*2);
     ctx.fill();
 
-    // Splattered white star points
-    ctx.fillStyle = '#fff';
-    for (let i = 0; i < 40; i++) {
-      const sx = Math.random() * w;
-      const sy = Math.random() * h;
-      const size = 0.5 + Math.random() * 1.5;
-      
-      ctx.beginPath();
-      ctx.arc(sx, sy, size, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // Right island silhouette
+    ctx.beginPath();
+    ctx.arc(w * 0.75 + 10, h - 15, 40, 0, Math.PI*2);
+    ctx.fill();
+
+    // Glowing Bridge Line
+    ctx.strokeStyle = '#ffe480';
+    ctx.shadowColor = '#ffa64d';
+    ctx.shadowBlur = 10;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(w/4 + 10, h - 35);
+    ctx.quadraticCurveTo(w/2, h - 45, w * 0.75 - 10, h - 32);
+    ctx.stroke();
+    
+    // reset shadow
+    ctx.shadowBlur = 0;
   }
 
-  // Watercolor splat drawing helper
+  // Watercolor splat helper
   drawWatercolorSplatter(ctx, x, y, maxRadius, color) {
     ctx.save();
     ctx.fillStyle = color;
     ctx.globalCompositeOperation = 'multiply';
     
-    // Draw 8-12 overlapping irregular small circles
-    const steps = 10;
+    const steps = 9;
     ctx.beginPath();
     for (let i = 0; i < steps; i++) {
       const angle = (i / steps) * Math.PI * 2;
       const radius = maxRadius * (0.6 + Math.random() * 0.4);
-      const cx = x + Math.cos(angle) * (maxRadius * 0.25);
-      const cy = y + Math.sin(angle) * (maxRadius * 0.25);
+      const cx = x + Math.cos(angle) * (maxRadius * 0.22);
+      const cy = y + Math.sin(angle) * (maxRadius * 0.22);
       
       if (i === 0) ctx.moveTo(cx + radius, cy);
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);

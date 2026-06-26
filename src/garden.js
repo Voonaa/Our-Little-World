@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { gsap } from 'gsap';
 
 export class FlowerGarden {
   constructor(scene) {
@@ -9,54 +10,73 @@ export class FlowerGarden {
     this.flowerMeshBlue = null;
     this.flowerMeshYellow = null;
     
+    this.monthlyFlowerMeshes = []; // list of special 3D monthly flower groups for raycasting
+    
     this.uniforms = {
       uTime: { value: 0 }
     };
 
+    // Centers of the two LDR islands
+    this.agusCenter = new THREE.Vector3(-15, 0, -5);
+    this.cesyaCenter = new THREE.Vector3(15, 0.8, 5);
+
     this.createGarden();
+    this.createMonthlyTimelineFlowers();
   }
 
-  // Check if coordinates clip into cottage, path, or river
+  // Bounding check to prevent greenery clipping on both islands
   isValidSpawn(x, z) {
-    // 1. Cottage boundaries (radius 4.8 around origin)
-    const distToCottage = Math.sqrt(x*x + z*z);
-    if (distToCottage < 4.8) return false;
+    // 1. Determine which island coordinates fall into
+    const distToAgus = Math.sqrt(Math.pow(x - this.agusCenter.x, 2) + Math.pow(z - this.agusCenter.z, 2));
+    const distToCesya = Math.sqrt(Math.pow(x - this.cesyaCenter.x, 2) + Math.pow(z - this.cesyaCenter.z, 2));
 
-    // 2. Out of island boundary (radius 20)
-    if (distToCottage > 19.5) return false;
+    // Agus's Island bounds (radius 14.5)
+    if (distToAgus < 14.5) {
+      // Avoid cottage center (local x:0, z:-3, world x:-15, z:-8)
+      const distToCottage = Math.sqrt(Math.pow(x - (-15), 2) + Math.pow(z - (-8), 2));
+      if (distToCottage < 4.2) return false;
 
-    // 3. Close to snaking pathway
-    // Path extends from z = 2.8 to z = 18.8
-    if (z > 2.5 && z < 19.5) {
-      const t = (z - 2.8) / 16.0;
-      const pathX = Math.sin(t * Math.PI * 1.5) * 1.5 - 0.5;
-      if (Math.abs(x - pathX) < 1.5) return false;
+      // Avoid Agus pathway Snaking
+      // World pathway spans from x = -15 to x = -1 (where bridge starts)
+      if (x > -15.5 && x < -1.0) {
+        // Simple linear approximation of path
+        const pathZ = -3.0 + (x - (-15)) / 14.0 * 5.0; 
+        if (Math.abs(z - pathZ) < 1.4) return false;
+      }
+      return true;
     }
 
-    // 4. Close to snaking river
-    // River winds from z = -25 to z = 25
-    const rt = (z + 25) / 50;
-    const riverX = Math.sin(rt * Math.PI * 2.5) * 3.5 - 6;
-    if (Math.abs(x - riverX) < 2.8) return false;
+    // Cesya's Island bounds (radius 13.5)
+    if (distToCesya < 13.5) {
+      // Avoid Telescope Deck center (world x: 19, z: 1)
+      const distToDeck = Math.sqrt(Math.pow(x - 19, 2) + Math.pow(z - 1, 2));
+      if (distToDeck < 2.5) return false;
 
-    return true;
+      // Avoid Cesya pathway Snaking
+      // Pathway winds from bridge end (world x: 2, z: 3) to deck (world x: 19, z: 1)
+      if (x > 2.0 && x < 19.5) {
+        const pathZ = 3.0 - (x - 2.0) / 17.5 * 2.0;
+        if (Math.abs(z - pathZ) < 1.4) return false;
+      }
+      return true;
+    }
+
+    return false; // falls in the cloud gap between islands
   }
 
   createGarden() {
-    // --- 1. Swaving Instanced Grass ---
-    const grassCount = 5500;
-    // 3-sided cone is extremely fast to render in bulk
-    const grassGeo = new THREE.ConeGeometry(0.06, 0.55, 3);
-    grassGeo.translate(0, 0.275, 0); // Translate origin to base for proper scaling
+    // --- 1. Instanced Swaying Grass on BOTH islands ---
+    const grassCount = 6500;
+    const grassGeo = new THREE.ConeGeometry(0.055, 0.55, 3);
+    grassGeo.translate(0, 0.275, 0); // shift origin to base
 
-    // Material with custom vertex shader modification for wind swaying
     const grassMat = new THREE.MeshStandardMaterial({
-      color: '#557a46',
+      color: '#55823c',
       roughness: 0.85,
       shadowSide: THREE.DoubleSide
     });
 
-    // inject wind shader logic
+    // Swaying shader
     grassMat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = this.uniforms.uTime;
       shader.vertexShader = `
@@ -67,10 +87,9 @@ export class FlowerGarden {
         '#include <begin_vertex>',
         `
           #include <begin_vertex>
-          // Sway amount based on height (transformed.y) and dynamic sine waves
-          float swayTime = uTime * 1.8;
-          float sway = sin(swayTime + position.x * 3.0 + position.z * 3.0) * transformed.y * 0.12;
-          sway += cos(swayTime * 0.5 + position.y * 4.0) * transformed.y * 0.04;
+          float swayTime = uTime * 1.6;
+          float sway = sin(swayTime + position.x * 2.5 + position.z * 2.5) * transformed.y * 0.13;
+          sway += cos(swayTime * 0.4 + position.y * 3.5) * transformed.y * 0.05;
           transformed.x += sway;
           transformed.z += sway * 0.6;
         `
@@ -84,18 +103,22 @@ export class FlowerGarden {
     const dummy = new THREE.Object3D();
     let grassIdx = 0;
 
-    // Distribute grass randomly on the island surface
     while (grassIdx < grassCount) {
+      // Randomly pick one of the two island centers to seed coordinates
+      const targetCenter = Math.random() < 0.55 ? this.agusCenter : this.cesyaCenter;
       const angle = Math.random() * Math.PI * 2;
-      const radius = Math.random() * 19.5;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
+      const radius = Math.random() * 14.0;
+      const x = targetCenter.x + Math.cos(angle) * radius;
+      const z = targetCenter.z + Math.sin(angle) * radius;
 
       if (this.isValidSpawn(x, z)) {
+        // Base height: Agus island surface at y=3.0, Cesya surface at y=2.0 (relative top coordinate)
+        const islandTopHeight = targetCenter === this.agusCenter ? 3.0 : 2.05;
+
         dummy.position.set(
-          x + (Math.random() - 0.5) * 0.2,
-          4.0, // base grass height sitting on island surface
-          z + (Math.random() - 0.5) * 0.2
+          x + (Math.random() - 0.5) * 0.15,
+          islandTopHeight,
+          z + (Math.random() - 0.5) * 0.15
         );
         
         dummy.rotation.set(
@@ -104,20 +127,19 @@ export class FlowerGarden {
           (Math.random() - 0.5) * 0.15
         );
         
-        // Random scale (height variations)
-        const scaleY = 0.7 + Math.random() * 0.6;
-        const scaleXZ = 0.7 + Math.random() * 0.4;
+        const scaleY = 0.7 + Math.random() * 0.55;
+        const scaleXZ = 0.7 + Math.random() * 0.35;
         dummy.scale.set(scaleXZ, scaleY, scaleXZ);
         
         dummy.updateMatrix();
         this.grassMesh.setMatrixAt(grassIdx, dummy.matrix);
 
-        // Mix grass colors (light green, dark green, warm yellow)
+        // Mix grass colors (fresh green, tropical green, mossy gold)
         const col = new THREE.Color();
         const r = Math.random();
-        if (r < 0.4) col.set('#7a9d54');      // bright grass green
-        else if (r < 0.85) col.set('#4f783c'); // deep forest green
-        else col.set('#b0ab60');              // warm yellow/cream tint
+        if (r < 0.4) col.set('#6a9e4b');
+        else if (r < 0.85) col.set('#456c31');
+        else col.set('#a09e5a');
         
         this.grassMesh.setColorAt(grassIdx, col);
         grassIdx++;
@@ -125,43 +147,14 @@ export class FlowerGarden {
     }
     this.scene.add(this.grassMesh);
 
-    // --- 2. Instanced Flower Fields ---
-    // Simple geometry representing a flower: a stem and 4 intersecting cross-planes for petals
-    const stemGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.4, 4);
-    stemGeo.translate(0, 0.2, 0);
-
-    const petalGeo = new THREE.BoxGeometry(0.16, 0.08, 0.16);
-    petalGeo.translate(0, 0.4, 0);
-
-    // Merge stem and petal geometries to create a single flower mesh
-    // In newer Three.js versions, BufferGeometryUtils is used, but we can also just create 
-    // separate instanced meshes or nest them. Separate instanced meshes for 
-    // flower colors is clean, fast, and highly editable.
-    // Let's create a single flower group/mesh:
-    const flowerGeo = new THREE.Group();
+    // --- 2. Instanced Small Landscape Flowers ---
+    const flowerCount = 450;
+    const mergedGeo = this.createFlowerGeometry();
     
-    // Stem
-    const stem = new THREE.Mesh(stemGeo, new THREE.MeshStandardMaterial({ color: '#4f783c', roughness: 0.9 }));
-    flowerGeo.add(stem);
-    
-    // Blossom center
-    const centerGeo = new THREE.SphereGeometry(0.06, 5, 5);
-    centerGeo.translate(0, 0.42, 0);
-    const center = new THREE.Mesh(centerGeo, new THREE.MeshStandardMaterial({ color: '#ffcc00', roughness: 0.9 }));
-    flowerGeo.add(center);
+    const flowerMatPink = new THREE.MeshStandardMaterial({ color: '#ffa6c9', roughness: 0.8, shadowSide: THREE.DoubleSide });
+    const flowerMatBlue = new THREE.MeshStandardMaterial({ color: '#7ad2f6', roughness: 0.8, shadowSide: THREE.DoubleSide });
+    const flowerMatYellow = new THREE.MeshStandardMaterial({ color: '#ffe466', roughness: 0.8, shadowSide: THREE.DoubleSide });
 
-    // Petals
-    const p1 = new THREE.Mesh(petalGeo, new THREE.MeshStandardMaterial({ color: '#ffffff' }));
-    flowerGeo.add(p1);
-
-    // Let's generate instanced meshes for Pink, Blue, and Yellow flowers
-    const flowerCount = 600; // 600 of each color
-    
-    const flowerMatPink = new THREE.MeshStandardMaterial({ color: '#ff94b8', roughness: 0.8, shadowSide: THREE.DoubleSide });
-    const flowerMatBlue = new THREE.MeshStandardMaterial({ color: '#7bc8f6', roughness: 0.8, shadowSide: THREE.DoubleSide });
-    const flowerMatYellow = new THREE.MeshStandardMaterial({ color: '#ffdf4d', roughness: 0.8, shadowSide: THREE.DoubleSide });
-
-    // Sway animation modifier for flower meshes
     const applyFlowerWind = (mat) => {
       mat.onBeforeCompile = (shader) => {
         shader.uniforms.uTime = this.uniforms.uTime;
@@ -173,9 +166,8 @@ export class FlowerGarden {
           '#include <begin_vertex>',
           `
             #include <begin_vertex>
-            // Sway flowers slightly slower and wider than grass
-            float swayTime = uTime * 1.4;
-            float sway = sin(swayTime + position.x * 2.0 + position.z * 2.0) * transformed.y * 0.18;
+            float swayTime = uTime * 1.3;
+            float sway = sin(swayTime + position.x * 2.0 + position.z * 2.0) * transformed.y * 0.16;
             transformed.x += sway;
             transformed.z += sway * 0.5;
           `
@@ -187,11 +179,6 @@ export class FlowerGarden {
     applyFlowerWind(flowerMatBlue);
     applyFlowerWind(flowerMatYellow);
 
-    // Combine stem/blossom into a single instanced mesh using simple merged geometry
-    // To make it easy and bulletproof, we will define a simple merged geometry.
-    // Let's merge standard geometries manually by using basic geometry attributes
-    const mergedGeo = this.createFlowerGeometry();
-
     this.flowerMeshPink = new THREE.InstancedMesh(mergedGeo, flowerMatPink, flowerCount);
     this.flowerMeshBlue = new THREE.InstancedMesh(mergedGeo, flowerMatBlue, flowerCount);
     this.flowerMeshYellow = new THREE.InstancedMesh(mergedGeo, flowerMatYellow, flowerCount);
@@ -200,44 +187,39 @@ export class FlowerGarden {
     this.flowerMeshBlue.castShadow = true;
     this.flowerMeshYellow.castShadow = true;
 
-    this.populateFlowerInstances(this.flowerMeshPink, flowerCount, '#ff8da9');
-    this.populateFlowerInstances(this.flowerMeshBlue, flowerCount, '#6dbdf2');
-    this.populateFlowerInstances(this.flowerMeshYellow, flowerCount, '#ffe566');
+    this.populateFlowerInstances(this.flowerMeshPink, flowerCount, '#ffa6c9');
+    this.populateFlowerInstances(this.flowerMeshBlue, flowerCount, '#7ad2f6');
+    this.populateFlowerInstances(this.flowerMeshYellow, flowerCount, '#ffe466');
 
     this.scene.add(this.flowerMeshPink);
     this.scene.add(this.flowerMeshBlue);
     this.scene.add(this.flowerMeshYellow);
   }
 
-  // Create a stylized 3D flower geometry (stems + petals merged)
   createFlowerGeometry() {
     const geometries = [];
 
-    // 1. Stem (Thin cylinder)
-    const stem = new THREE.CylinderGeometry(0.015, 0.015, 0.5, 4);
+    // Stem
+    const stem = new THREE.CylinderGeometry(0.012, 0.012, 0.5, 4);
     stem.translate(0, 0.25, 0);
     geometries.push(stem);
 
-    // 2. Flower Center (Yellow disk/sphere)
-    const center = new THREE.SphereGeometry(0.05, 5, 5);
+    // Center disk
+    const center = new THREE.SphereGeometry(0.045, 5, 5);
     center.translate(0, 0.5, 0);
     geometries.push(center);
 
-    // 3. Petals (4 cross planes)
+    // 4 cross petals
     for (let i = 0; i < 4; i++) {
-      const petal = new THREE.BoxGeometry(0.18, 0.03, 0.06);
-      petal.translate(0.08, 0.5, 0);
+      const petal = new THREE.BoxGeometry(0.16, 0.025, 0.05);
+      petal.translate(0.07, 0.5, 0);
       petal.rotateY((i * Math.PI) / 4);
       geometries.push(petal);
     }
 
-    // Merge geometries
-    // We can merge buffers manually to avoid external loaders
-    const mergedGeometry = this.mergeBufferGeometries(geometries);
-    return mergedGeometry;
+    return this.mergeBufferGeometries(geometries);
   }
 
-  // Simple buffer geometry merger to avoid importing BufferGeometryUtils
   mergeBufferGeometries(geometries) {
     let totalVertices = 0;
     let totalIndices = 0;
@@ -253,13 +235,11 @@ export class FlowerGarden {
     const indices = [];
 
     let vertexOffset = 0;
-    let indexOffset = 0;
 
     geometries.forEach(geo => {
       const posAttr = geo.attributes.position;
       const normAttr = geo.attributes.normal;
 
-      // Copy vertices and normals
       for (let i = 0; i < posAttr.count; i++) {
         positions[(vertexOffset + i) * 3] = posAttr.getX(i);
         positions[(vertexOffset + i) * 3 + 1] = posAttr.getY(i);
@@ -272,13 +252,11 @@ export class FlowerGarden {
         }
       }
 
-      // Copy indices
       if (geo.index) {
         for (let i = 0; i < geo.index.count; i++) {
           indices.push(geo.index.getX(i) + vertexOffset);
         }
       } else {
-        // Generate non-indexed indices
         for (let i = 0; i < posAttr.count; i++) {
           indices.push(vertexOffset + i);
         }
@@ -300,43 +278,144 @@ export class FlowerGarden {
     let idx = 0;
 
     while (idx < count) {
+      const targetCenter = Math.random() < 0.5 ? this.agusCenter : this.cesyaCenter;
       const angle = Math.random() * Math.PI * 2;
-      const radius = Math.random() * 19.5;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
+      const radius = Math.random() * 13.5;
+      const x = targetCenter.x + Math.cos(angle) * radius;
+      const z = targetCenter.z + Math.sin(angle) * radius;
 
       if (this.isValidSpawn(x, z)) {
+        const islandTopHeight = targetCenter === this.agusCenter ? 3.0 : 2.05;
+
         dummy.position.set(
-          x + (Math.random() - 0.5) * 0.4,
-          3.95, // flower stem base on surface
-          z + (Math.random() - 0.5) * 0.4
+          x + (Math.random() - 0.5) * 0.35,
+          islandTopHeight,
+          z + (Math.random() - 0.5) * 0.35
         );
         
         dummy.rotation.set(
-          (Math.random() - 0.5) * 0.2,
+          (Math.random() - 0.5) * 0.18,
           Math.random() * Math.PI,
-          (Math.random() - 0.5) * 0.2
+          (Math.random() - 0.5) * 0.18
         );
 
-        // Flowers random heights
-        const h = 0.8 + Math.random() * 0.5;
+        const h = 0.75 + Math.random() * 0.5;
         dummy.scale.set(h, h, h);
 
         dummy.updateMatrix();
         instMesh.setMatrixAt(idx, dummy.matrix);
 
-        // Add subtle color variance to flowers of same group
-        const variationColor = baseColor.clone();
-        variationColor.offsetHSL(
-          (Math.random() - 0.5) * 0.05, // minor hue shift
-          (Math.random() - 0.5) * 0.1,  // minor saturation shift
-          (Math.random() - 0.5) * 0.1   // minor lightness shift
+        const varColor = baseColor.clone();
+        varColor.offsetHSL(
+          (Math.random() - 0.5) * 0.04,
+          (Math.random() - 0.5) * 0.08,
+          (Math.random() - 0.5) * 0.08
         );
-        instMesh.setColorAt(idx, variationColor);
+        instMesh.setColorAt(idx, varColor);
 
         idx++;
       }
     }
+  }
+
+  // --- 3. THE 7 DYNAMIC MONTHLY GLOWING TIMELINE FLOWERS ---
+  // Coordinates are chosen to distribute them nicely on both islands
+  createMonthlyTimelineFlowers() {
+    const flowerConfigs = [
+      // 1. Dec 2025 - Spark (Agus's Island near Cottage door)
+      { id: 0, x: -16.0, y: 3.02, z: -0.2, color: '#ff3366', name: 'spark' },
+      // 2. Jan 2026 - Call (Agus's Island near front path)
+      { id: 1, x: -13.0, y: 3.02, z: 1.2, color: '#ff66cc', name: 'first-anniversary' },
+      // 3. Feb 2026 - Valentine (Agus's Island cozy back corner)
+      { id: 2, x: -20.0, y: 3.02, z: -5.0, color: '#ffcc00', name: 'valentine' },
+      // 4. Mar 2026 - Trust (Cesya's Island near bridge landing)
+      { id: 3, x: 12.0, y: 2.07, z: 2.8, color: '#ff6600', name: 'ldr-growing' },
+      // 5. Apr 2026 - Future Talks (Cesya's Island near telescope)
+      { id: 4, x: 17.5, y: 2.07, z: 2.5, color: '#33ccff', name: 'future-talks' },
+      // 6. May 2026 - Plans (Cesya's Island path corner)
+      { id: 5, x: 14.5, y: 2.07, z: -1.5, color: '#cc33ff', name: 'plans-shared' },
+      // 7. Jun 2026 - Today (Cesya's Island edge looking at bridge gap)
+      { id: 6, x: 9.8, y: 2.07, z: 5.5, color: '#33ffaa', name: 'today-reality' }
+    ];
+
+    flowerConfigs.forEach(cfg => {
+      const flowerGroup = new THREE.Group();
+      flowerGroup.name = `monthly-flower-${cfg.id}`;
+      flowerGroup.position.set(cfg.x, cfg.y, cfg.z);
+      flowerGroup.userData = { flowerId: cfg.id };
+
+      // Thick curved stem
+      const stemPoints = [
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0.05, 0.3, -0.05),
+        new THREE.Vector3(0.12, 0.6, 0.05)
+      ];
+      const stemCurve = new THREE.CatmullRomCurve3(stemPoints);
+      const stemGeo = new THREE.TubeGeometry(stemCurve, 12, 0.04, 6, false);
+      const stemMat = new THREE.MeshStandardMaterial({ color: '#3f632d', roughness: 0.9 });
+      const stem = new THREE.Mesh(stemGeo, stemMat);
+      stem.castShadow = true;
+      flowerGroup.add(stem);
+
+      // Large beautiful rose/tulip blossom petals
+      const petalMat = new THREE.MeshStandardMaterial({
+        color: cfg.color,
+        roughness: 0.65,
+        side: THREE.DoubleSide
+      });
+
+      // Spawn 6 stylized overlapping blossom petal scales
+      for (let i = 0; i < 6; i++) {
+        const petalGeo = new THREE.SphereGeometry(0.18, 8, 8, 0, Math.PI * 1.3);
+        petalGeo.translate(0, 0.12, 0);
+        
+        const petal = new THREE.Mesh(petalGeo, petalMat);
+        petal.position.set(0.12, 0.6, 0.05);
+        petal.rotation.x = 0.35;
+        petal.rotation.y = (i * Math.PI * 2) / 6;
+        petal.rotation.z = 0.45;
+        
+        petal.castShadow = true;
+        flowerGroup.add(petal);
+      }
+
+      // Glowing heart core sphere (shines bright under bloom postprocessing)
+      const coreGeo = new THREE.SphereGeometry(0.1, 8, 8);
+      const coreMat = new THREE.MeshStandardMaterial({
+        color: '#ffffff',
+        emissive: cfg.color,
+        emissiveIntensity: 2.2, // bright glow
+        roughness: 0.1
+      });
+      const core = new THREE.Mesh(coreGeo, coreMat);
+      core.position.set(0.12, 0.68, 0.05);
+      flowerGroup.add(core);
+
+      // Small floating particle light
+      const pointLight = new THREE.PointLight(cfg.color, 0.8, 4, 1.8);
+      pointLight.position.set(0.12, 0.88, 0.05);
+      flowerGroup.add(pointLight);
+
+      // Continuous floating animation
+      gsap.to(flowerGroup.position, {
+        y: cfg.y + 0.12,
+        duration: 1.5 + Math.random() * 0.8,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut'
+      });
+
+      this.scene.add(flowerGroup);
+      this.monthlyFlowerMeshes.push(flowerGroup);
+
+      // Add a small 2D text overlay name that appears when hovering
+      const label = document.createElement('div');
+      label.className = 'glowing-node-label';
+      label.id = `label-flower-${cfg.id}`;
+      label.innerText = `Flower ${cfg.id + 1}`; // e.g. Flower 1
+      document.body.appendChild(label);
+      flowerGroup.userData.htmlLabel = label;
+    });
   }
 
   update(time) {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Our Little World | A Cinematic 3D Love Story</title>
+    <title>Our Little World | Agus & Cesya LDR Story</title>
     <!-- Google Fonts for premium typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,7 +28,7 @@
           <div class="loading-bar-bg">
             <div id="loading-bar" class="loading-bar"></div>
           </div>
-          <span id="loading-text" class="loading-text">Preparing the world... 0%</span>
+          <span id="loading-text" class="loading-text">Establishing connection...</span>
         </div>
 
         <button id="start-btn" class="start-btn hidden">Enter Our World</button>
@@ -45,7 +45,7 @@
           <div class="polaroid-content">
             <h2 id="memory-title" class="memory-title">First Day We Met</h2>
             <p id="memory-date" class="memory-date">June 26, 2024</p>
-            <p id="memory-description" class="memory-description">Under the shade of the old willow, we talked for hours about everything and nothing. It felt like time stood still.</p>
+            <p id="memory-description" class="memory-description">Memory description...</p>
           </div>
         </div>
         <button id="close-memory-btn" class="close-btn">&times; Back to World</button>
@@ -64,29 +64,44 @@
         </span>
       </button>
 
-      <!-- Time of Day Controller -->
-      <div class="time-controller">
-        <span class="hud-label">Atmosphere</span>
-        <div class="time-buttons">
-          <button id="time-dawn" class="time-btn active" data-time="dawn">Dawn</button>
-          <button id="time-day" class="time-btn" data-time="day">Day</button>
-          <button id="time-dusk" class="time-btn" data-time="dusk">Dusk</button>
-          <button id="time-night" class="time-btn" data-time="night">Night</button>
+      <!-- Left-side Chapters Pane -->
+      <div class="chapter-controller">
+        <span class="hud-label">Chapters</span>
+        <div class="chapter-buttons">
+          <button class="chapter-btn active" data-chapter="0">Ch 0: Start</button>
+          <button class="chapter-btn" data-chapter="1">Ch 1: Garden</button>
+          <button class="chapter-btn" data-chapter="2">Ch 2: House</button>
+          <button class="chapter-btn" data-chapter="3">Ch 3: Islands</button>
+          <button class="chapter-btn" data-chapter="4">Ch 4: Bridge</button>
+          <button class="chapter-btn" data-chapter="5">Ch 5: Dreams</button>
         </div>
       </div>
 
-      <!-- Quick Tour Guide / Memory Log -->
+      <!-- Right-side Weather Switcher Pane -->
+      <div class="time-controller">
+        <span class="hud-label">Atmosphere</span>
+        <div class="time-buttons">
+          <button id="time-sunny" class="time-btn" data-time="sunny">Sunny</button>
+          <button id="time-golden" class="time-btn" data-time="golden">Sunset</button>
+          <button id="time-rain" class="time-btn" data-time="rain">Rain</button>
+          <button id="time-fog" class="time-btn" data-time="fog">Fog</button>
+          <button id="time-night" class="time-btn" data-time="night">Night</button>
+          <button id="time-stars" class="time-btn" data-time="stars">Stars</button>
+        </div>
+      </div>
+
+      <!-- Memory Discovery tracker -->
       <div class="memory-tracker">
-        <span class="tracker-title">Memories Explored</span>
+        <span class="tracker-title">Anniversaries Explored</span>
         <div class="tracker-progress-wrapper">
           <div class="tracker-progress">
             <div id="tracker-fill" class="tracker-fill" style="width: 0%;"></div>
           </div>
-          <span id="tracker-text" class="tracker-text">0 / 4</span>
+          <span id="tracker-text" class="tracker-text">0 / 7</span>
         </div>
       </div>
 
-      <!-- Bottom Cinematic Captions / Emotional Text Prompts -->
+      <!-- Bottom cinematic captions -->
       <div id="captions" class="cinematic-caption"></div>
     </div>
 

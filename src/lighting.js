@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { gsap } from 'gsap';
+import { audioInstance } from './audio.js';
 
 export class LightingManager {
   constructor(scene, renderer) {
@@ -8,60 +9,96 @@ export class LightingManager {
 
     this.hemiLight = null;
     this.dirLight = null;
-    this.cottagePointLight = null; // Warm window/hearth light
+    this.cottagePointLight = null;
+    this.pathwayLight = null;
     
-    // Ambient shadows configuration
     this.shadowBias = -0.0005;
 
-    // Define configuration values for each time of day
+    // Define 7 total configurations (dawn + 6 requested weather states)
     this.states = {
       dawn: {
-        skyColor: '#ffebd6',
+        skyColor: '#ffe6cc',
         groundColor: '#3c5a2c',
-        hemiIntensity: 0.55,
-        dirColor: '#ffa84d', // warm golden sun
-        dirIntensity: 1.4,
-        dirPos: { x: -40, y: 15, z: -25 },
+        hemiIntensity: 0.6,
+        dirColor: '#ffa500', // warm gold sun
+        dirIntensity: 1.3,
+        dirPos: { x: -45, y: 15, z: -25 },
         fogColor: '#ffeae0',
         fogDensity: 0.012,
-        cottageLightIntensity: 0.3,
+        cottageLightIntensity: 0.4,
         exposure: 1.05
       },
-      day: {
+      sunny: {
         skyColor: '#bde3ff', // bright blue sky dome
         groundColor: '#4f783c',
-        hemiIntensity: 0.85,
-        dirColor: '#fffff0', // bright daylight
-        dirIntensity: 1.8,
-        dirPos: { x: 20, y: 60, z: 20 },
+        hemiIntensity: 0.9,
+        dirColor: '#fffff5', // bright daylight
+        dirIntensity: 1.9,
+        dirPos: { x: 20, y: 65, z: 20 },
         fogColor: '#e3f5ff',
-        fogDensity: 0.004,
+        fogDensity: 0.003,
         cottageLightIntensity: 0.0,
-        exposure: 1.0
+        exposure: 1.05
       },
-      dusk: {
-        skyColor: '#78508f', // deep purple sunset sky
+      golden: {
+        skyColor: '#7a3e7a', // deep sunset purple sky dome
         groundColor: '#2b3e21',
-        hemiIntensity: 0.45,
-        dirColor: '#ff4d24', // crimson sunset
-        dirIntensity: 1.3,
-        dirPos: { x: 40, y: 8, z: -15 },
-        fogColor: '#382245',
+        hemiIntensity: 0.5,
+        dirColor: '#ff4500', // deep red-orange sun rays
+        dirIntensity: 1.6,
+        dirPos: { x: 45, y: 8, z: -15 },
+        fogColor: '#482452',
         fogDensity: 0.014,
+        cottageLightIntensity: 2.5,
+        exposure: 0.98
+      },
+      rain: {
+        skyColor: '#334455', // dark overcast blue-grey
+        groundColor: '#1c281a',
+        hemiIntensity: 0.35,
+        dirColor: '#8899aa', // dim flat sunlight
+        dirIntensity: 0.5,
+        dirPos: { x: 10, y: 50, z: 10 },
+        fogColor: '#242f3d',
+        fogDensity: 0.038, // dense dark rainy mist
+        cottageLightIntensity: 3.0, // warm glow pops in rain
+        exposure: 0.8
+      },
+      fog: {
+        skyColor: '#ccdbe0', // flat white-grey mist sky dome
+        groundColor: '#2a3528',
+        hemiIntensity: 0.45,
+        dirColor: '#aabbcc',
+        dirIntensity: 0.6,
+        dirPos: { x: -10, y: 40, z: 5 },
+        fogColor: '#dbe7eb',
+        fogDensity: 0.048, // thick white fog sheet
         cottageLightIntensity: 2.2,
-        exposure: 0.95
+        exposure: 0.9
       },
       night: {
-        skyColor: '#0a0d1a', // starry dark blue sky
-        groundColor: '#121921',
-        hemiIntensity: 0.18,
-        dirColor: '#9bbec7', // pale cool moon light
-        dirIntensity: 0.65,
-        dirPos: { x: -30, y: 50, z: 15 },
+        skyColor: '#0a0d1a', // starry midnight
+        groundColor: '#10151c',
+        hemiIntensity: 0.2,
+        dirColor: '#90b4bd', // cool moon reflection
+        dirIntensity: 0.7,
+        dirPos: { x: -30, y: 48, z: 15 },
         fogColor: '#070912',
         fogDensity: 0.018,
-        cottageLightIntensity: 3.8,
-        exposure: 0.85
+        cottageLightIntensity: 4.2,
+        exposure: 0.88
+      },
+      stars: {
+        skyColor: '#02030a', // pitch black sky dome to show emissive stars
+        groundColor: '#0a0d12',
+        hemiIntensity: 0.15,
+        dirColor: '#7799aa', // soft blue star starlight
+        dirIntensity: 0.55,
+        dirPos: { x: -40, y: 55, z: 20 },
+        fogColor: '#020308',
+        fogDensity: 0.01, // extremely clear for stars viewing
+        cottageLightIntensity: 4.5,
+        exposure: 0.95
       }
     };
 
@@ -72,7 +109,6 @@ export class LightingManager {
   createLights() {
     const initial = this.states[this.current];
 
-    // 1. Hemisphere Light (fills the shadows with sky dome light)
     this.hemiLight = new THREE.HemisphereLight(
       initial.skyColor,
       initial.groundColor,
@@ -80,42 +116,52 @@ export class LightingManager {
     );
     this.scene.add(this.hemiLight);
 
-    // 2. Directional Light (Sun/Moon - casts soft shadows)
     this.dirLight = new THREE.DirectionalLight(initial.dirColor, initial.dirIntensity);
     this.dirLight.position.set(initial.dirPos.x, initial.dirPos.y, initial.dirPos.z);
     
-    // Shadow mapping configurations for cinematic quality
     this.dirLight.castShadow = true;
-    this.dirLight.shadow.mapSize.width = 2048; // High res shadow map
+    this.dirLight.shadow.mapSize.width = 2048;
     this.dirLight.shadow.mapSize.height = 2048;
     this.dirLight.shadow.camera.near = 0.5;
     this.dirLight.shadow.camera.far = 200;
     
-    // Adjust shadow frustum to fit the floating island perfectly
     const shadowSize = 35;
     this.dirLight.shadow.camera.left = -shadowSize;
     this.dirLight.shadow.camera.right = shadowSize;
     this.dirLight.shadow.camera.top = shadowSize;
     this.dirLight.shadow.camera.bottom = -shadowSize;
     this.dirLight.shadow.bias = this.shadowBias;
-    this.dirLight.shadow.normalBias = 0.05; // minimize shadow acne
+    this.dirLight.shadow.normalBias = 0.04;
     
     this.scene.add(this.dirLight);
 
-    // 3. Cottage point light (warm orange interior lighting glowing through doors/windows)
-    // Placed inside the cottage at center
+    // Warm orange hearth light inside cottage on Agus's island
     this.cottagePointLight = new THREE.PointLight('#ff7711', initial.cottageLightIntensity, 25, 1.5);
-    this.cottagePointLight.position.set(0, 5.5, 0); // Center height of cottage interior
+    // Placed in Agus's cottage (will adjust coordinates in island.js update relative to new island centers)
+    // For now we set default position at center, will offset inside island.js relative placement
+    this.cottagePointLight.position.set(-16.0, 5.5, -8.0); 
     this.cottagePointLight.castShadow = true;
     this.cottagePointLight.shadow.bias = -0.002;
-    this.cottagePointLight.shadow.mapSize.width = 512;
-    this.cottagePointLight.shadow.mapSize.height = 512;
     this.scene.add(this.cottagePointLight);
     
-    // Add a tiny glowing helper light on the pathway for dusk/night
+    // Tiny path light
     this.pathwayLight = new THREE.PointLight('#ffbb55', 0, 12, 2.0);
-    this.pathwayLight.position.set(0, 4, 6); // Just outside the door
+    this.pathwayLight.position.set(-16.0, 4.2, -2.0);
     this.scene.add(this.pathwayLight);
+  }
+
+  // Trigger lightning flashes during rain weather state
+  triggerLightningFlash() {
+    if (this.current !== 'rain') return;
+
+    const flashIntensity = 4.0 + Math.random() * 3.0;
+    const tl = gsap.timeline();
+    
+    // Quick double flash
+    tl.to(this.dirLight, { intensity: flashIntensity, duration: 0.05, ease: 'power4.out' })
+      .to(this.dirLight, { intensity: 0.5, duration: 0.08 })
+      .to(this.dirLight, { intensity: flashIntensity - 1.0, duration: 0.04, ease: 'power4.out' })
+      .to(this.dirLight, { intensity: 0.5, duration: 0.35, ease: 'power2.in' });
   }
 
   transitionTo(stateName, duration = 2.5) {
@@ -123,13 +169,14 @@ export class LightingManager {
     this.current = stateName;
     const target = this.states[stateName];
 
-    // Helper colors
+    // Trigger procedural synthesizer ambiance crossfade
+    audioInstance.fadeAmbiance(stateName);
+
     const targetSky = new THREE.Color(target.skyColor);
     const targetGround = new THREE.Color(target.groundColor);
     const targetDir = new THREE.Color(target.dirColor);
     const targetFog = new THREE.Color(target.fogColor);
 
-    // Animate light parameters using GSAP
     gsap.killTweensOf([
       this.hemiLight, this.hemiLight.color, this.hemiLight.groundColor,
       this.dirLight, this.dirLight.color, this.dirLight.position,
@@ -138,31 +185,24 @@ export class LightingManager {
       this.renderer
     ]);
 
-    // Hemi light intensities and colors
     gsap.to(this.hemiLight, { intensity: target.hemiIntensity, duration, ease: 'power2.out' });
     gsap.to(this.hemiLight.color, { r: targetSky.r, g: targetSky.g, b: targetSky.b, duration, ease: 'power2.out' });
     gsap.to(this.hemiLight.groundColor, { r: targetGround.r, g: targetGround.g, b: targetGround.b, duration, ease: 'power2.out' });
 
-    // Directional light intensity, colors and positions (orbiting sun)
     gsap.to(this.dirLight, { intensity: target.dirIntensity, duration, ease: 'power2.out' });
     gsap.to(this.dirLight.color, { r: targetDir.r, g: targetDir.g, b: targetDir.b, duration, ease: 'power2.out' });
     gsap.to(this.dirLight.position, { x: target.dirPos.x, y: target.dirPos.y, z: target.dirPos.z, duration, ease: 'power2.out' });
 
-    // Fog interpolation
     gsap.to(this.scene.fog, { density: target.fogDensity, duration, ease: 'power2.out' });
     gsap.to(this.scene.fog.color, { r: targetFog.r, g: targetFog.g, b: targetFog.b, duration, ease: 'power2.out' });
 
-    // Cottage interior light intensity (bright at night/dusk, dim at day/dawn)
     gsap.to(this.cottagePointLight, { intensity: target.cottageLightIntensity, duration, ease: 'power2.out' });
     
-    // Pathway light helper
-    const targetPathIntensity = stateName === 'night' ? 1.5 : (stateName === 'dusk' ? 0.8 : 0);
+    const targetPathIntensity = (stateName === 'night' || stateName === 'stars') ? 1.8 : (stateName === 'dusk' || stateName === 'golden' ? 0.8 : 0);
     gsap.to(this.pathwayLight, { intensity: targetPathIntensity, duration, ease: 'power2.out' });
 
-    // Renderer Tone Mapping Exposure Adjustments
     gsap.to(this.renderer, { toneMappingExposure: target.exposure, duration, ease: 'power2.out' });
     
-    // Change background of renderer body to match fog color
     gsap.to(document.body.style, { backgroundColor: target.fogColor, duration, ease: 'power2.out' });
   }
 }
