@@ -56,7 +56,9 @@ class Application {
       this.sceneManager,
       this.lightingManager,
       this.particles,
-      this.garden
+      this.garden,
+      this.islandEnv,
+      this.river
     );
 
     // Start rendering tick loop

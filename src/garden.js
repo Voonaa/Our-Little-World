@@ -10,13 +10,13 @@ export class FlowerGarden {
     this.flowerMeshBlue = null;
     this.flowerMeshYellow = null;
     
-    this.monthlyFlowerMeshes = []; // list of special 3D monthly flower groups for raycasting
+    this.monthlyFlowerMeshes = [];
     
     this.uniforms = {
-      uTime: { value: 0 }
+      uTime: { value: 0 },
+      uGrowth: { value: 0 } // Growth wave uniform (GPU-based grass & landscape flowers)
     };
 
-    // Centers of the two LDR islands
     this.agusCenter = new THREE.Vector3(-15, 0, -5);
     this.cesyaCenter = new THREE.Vector3(15, 0.8, 5);
 
@@ -24,36 +24,25 @@ export class FlowerGarden {
     this.createMonthlyTimelineFlowers();
   }
 
-  // Bounding check to prevent greenery clipping on both islands
   isValidSpawn(x, z) {
-    // 1. Determine which island coordinates fall into
     const distToAgus = Math.sqrt(Math.pow(x - this.agusCenter.x, 2) + Math.pow(z - this.agusCenter.z, 2));
     const distToCesya = Math.sqrt(Math.pow(x - this.cesyaCenter.x, 2) + Math.pow(z - this.cesyaCenter.z, 2));
 
-    // Agus's Island bounds (radius 14.5)
     if (distToAgus < 14.5) {
-      // Avoid cottage center (local x:0, z:-3, world x:-15, z:-8)
       const distToCottage = Math.sqrt(Math.pow(x - (-15), 2) + Math.pow(z - (-8), 2));
       if (distToCottage < 4.2) return false;
 
-      // Avoid Agus pathway Snaking
-      // World pathway spans from x = -15 to x = -1 (where bridge starts)
       if (x > -15.5 && x < -1.0) {
-        // Simple linear approximation of path
         const pathZ = -3.0 + (x - (-15)) / 14.0 * 5.0; 
         if (Math.abs(z - pathZ) < 1.4) return false;
       }
       return true;
     }
 
-    // Cesya's Island bounds (radius 13.5)
     if (distToCesya < 13.5) {
-      // Avoid Telescope Deck center (world x: 19, z: 1)
       const distToDeck = Math.sqrt(Math.pow(x - 19, 2) + Math.pow(z - 1, 2));
       if (distToDeck < 2.5) return false;
 
-      // Avoid Cesya pathway Snaking
-      // Pathway winds from bridge end (world x: 2, z: 3) to deck (world x: 19, z: 1)
       if (x > 2.0 && x < 19.5) {
         const pathZ = 3.0 - (x - 2.0) / 17.5 * 2.0;
         if (Math.abs(z - pathZ) < 1.4) return false;
@@ -61,14 +50,13 @@ export class FlowerGarden {
       return true;
     }
 
-    return false; // falls in the cloud gap between islands
+    return false;
   }
 
   createGarden() {
-    // --- 1. Instanced Swaying Grass on BOTH islands ---
     const grassCount = 6500;
     const grassGeo = new THREE.ConeGeometry(0.055, 0.55, 3);
-    grassGeo.translate(0, 0.275, 0); // shift origin to base
+    grassGeo.translate(0, 0.275, 0); // origin to base
 
     const grassMat = new THREE.MeshStandardMaterial({
       color: '#55823c',
@@ -76,11 +64,12 @@ export class FlowerGarden {
       shadowSide: THREE.DoubleSide
     });
 
-    // Swaying shader
     grassMat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = this.uniforms.uTime;
+      shader.uniforms.uGrowth = this.uniforms.uGrowth;
       shader.vertexShader = `
         uniform float uTime;
+        uniform float uGrowth;
       ` + shader.vertexShader;
 
       shader.vertexShader = shader.vertexShader.replace(
@@ -92,6 +81,9 @@ export class FlowerGarden {
           sway += cos(swayTime * 0.4 + position.y * 3.5) * transformed.y * 0.05;
           transformed.x += sway;
           transformed.z += sway * 0.6;
+          
+          // GPU Growth wave scaling height from 0 to 1
+          transformed.xyz *= uGrowth;
         `
       );
     };
@@ -104,7 +96,6 @@ export class FlowerGarden {
     let grassIdx = 0;
 
     while (grassIdx < grassCount) {
-      // Randomly pick one of the two island centers to seed coordinates
       const targetCenter = Math.random() < 0.55 ? this.agusCenter : this.cesyaCenter;
       const angle = Math.random() * Math.PI * 2;
       const radius = Math.random() * 14.0;
@@ -112,7 +103,6 @@ export class FlowerGarden {
       const z = targetCenter.z + Math.sin(angle) * radius;
 
       if (this.isValidSpawn(x, z)) {
-        // Base height: Agus island surface at y=3.0, Cesya surface at y=2.0 (relative top coordinate)
         const islandTopHeight = targetCenter === this.agusCenter ? 3.0 : 2.05;
 
         dummy.position.set(
@@ -134,7 +124,6 @@ export class FlowerGarden {
         dummy.updateMatrix();
         this.grassMesh.setMatrixAt(grassIdx, dummy.matrix);
 
-        // Mix grass colors (fresh green, tropical green, mossy gold)
         const col = new THREE.Color();
         const r = Math.random();
         if (r < 0.4) col.set('#6a9e4b');
@@ -158,8 +147,10 @@ export class FlowerGarden {
     const applyFlowerWind = (mat) => {
       mat.onBeforeCompile = (shader) => {
         shader.uniforms.uTime = this.uniforms.uTime;
+        shader.uniforms.uGrowth = this.uniforms.uGrowth;
         shader.vertexShader = `
           uniform float uTime;
+          uniform float uGrowth;
         ` + shader.vertexShader;
 
         shader.vertexShader = shader.vertexShader.replace(
@@ -170,6 +161,9 @@ export class FlowerGarden {
             float sway = sin(swayTime + position.x * 2.0 + position.z * 2.0) * transformed.y * 0.16;
             transformed.x += sway;
             transformed.z += sway * 0.5;
+            
+            // GPU Growth wave scaling from 0 to 1
+            transformed.xyz *= uGrowth;
           `
         );
       };
@@ -199,17 +193,14 @@ export class FlowerGarden {
   createFlowerGeometry() {
     const geometries = [];
 
-    // Stem
-    const stem = new THREE.CylinderGeometry(0.012, 0.012, 0.5, 4);
+    const stem = new THREE.CylinderGeometry(0.015, 0.015, 0.5, 4);
     stem.translate(0, 0.25, 0);
     geometries.push(stem);
 
-    // Center disk
     const center = new THREE.SphereGeometry(0.045, 5, 5);
     center.translate(0, 0.5, 0);
     geometries.push(center);
 
-    // 4 cross petals
     for (let i = 0; i < 4; i++) {
       const petal = new THREE.BoxGeometry(0.16, 0.025, 0.05);
       petal.translate(0.07, 0.5, 0);
@@ -318,24 +309,15 @@ export class FlowerGarden {
     }
   }
 
-  // --- 3. THE 7 DYNAMIC MONTHLY GLOWING TIMELINE FLOWERS ---
-  // Coordinates are chosen to distribute them nicely on both islands
   createMonthlyTimelineFlowers() {
     const flowerConfigs = [
-      // 1. Dec 2025 - Spark (Agus's Island near Cottage door)
-      { id: 0, x: -16.0, y: 3.02, z: -0.2, color: '#ff3366', name: 'spark' },
-      // 2. Jan 2026 - Call (Agus's Island near front path)
-      { id: 1, x: -13.0, y: 3.02, z: 1.2, color: '#ff66cc', name: 'first-anniversary' },
-      // 3. Feb 2026 - Valentine (Agus's Island cozy back corner)
-      { id: 2, x: -20.0, y: 3.02, z: -5.0, color: '#ffcc00', name: 'valentine' },
-      // 4. Mar 2026 - Trust (Cesya's Island near bridge landing)
-      { id: 3, x: 12.0, y: 2.07, z: 2.8, color: '#ff6600', name: 'ldr-growing' },
-      // 5. Apr 2026 - Future Talks (Cesya's Island near telescope)
-      { id: 4, x: 17.5, y: 2.07, z: 2.5, color: '#33ccff', name: 'future-talks' },
-      // 6. May 2026 - Plans (Cesya's Island path corner)
-      { id: 5, x: 14.5, y: 2.07, z: -1.5, color: '#cc33ff', name: 'plans-shared' },
-      // 7. Jun 2026 - Today (Cesya's Island edge looking at bridge gap)
-      { id: 6, x: 9.8, y: 2.07, z: 5.5, color: '#33ffaa', name: 'today-reality' }
+      { id: 0, x: -16.0, y: 3.02, z: -0.2, color: '#ff3366' },
+      { id: 1, x: -13.0, y: 3.02, z: 1.2, color: '#ff66cc' },
+      { id: 2, x: -20.0, y: 3.02, z: -5.0, color: '#ffcc00' },
+      { id: 3, x: 12.0, y: 2.07, z: 2.8, color: '#ff6600' },
+      { id: 4, x: 17.5, y: 2.07, z: 2.5, color: '#33ccff' },
+      { id: 5, x: 14.5, y: 2.07, z: -1.5, color: '#cc33ff' },
+      { id: 6, x: 9.8, y: 2.07, z: 5.5, color: '#33ffaa' }
     ];
 
     flowerConfigs.forEach(cfg => {
@@ -343,8 +325,10 @@ export class FlowerGarden {
       flowerGroup.name = `monthly-flower-${cfg.id}`;
       flowerGroup.position.set(cfg.x, cfg.y, cfg.z);
       flowerGroup.userData = { flowerId: cfg.id };
+      
+      // Growth initial scale
+      flowerGroup.scale.set(0.0001, 0.0001, 0.0001);
 
-      // Thick curved stem
       const stemPoints = [
         new THREE.Vector3(0, 0, 0),
         new THREE.Vector3(0.05, 0.3, -0.05),
@@ -357,14 +341,12 @@ export class FlowerGarden {
       stem.castShadow = true;
       flowerGroup.add(stem);
 
-      // Large beautiful rose/tulip blossom petals
       const petalMat = new THREE.MeshStandardMaterial({
         color: cfg.color,
         roughness: 0.65,
         side: THREE.DoubleSide
       });
 
-      // Spawn 6 stylized overlapping blossom petal scales
       for (let i = 0; i < 6; i++) {
         const petalGeo = new THREE.SphereGeometry(0.18, 8, 8, 0, Math.PI * 1.3);
         petalGeo.translate(0, 0.12, 0);
@@ -379,40 +361,28 @@ export class FlowerGarden {
         flowerGroup.add(petal);
       }
 
-      // Glowing heart core sphere (shines bright under bloom postprocessing)
       const coreGeo = new THREE.SphereGeometry(0.1, 8, 8);
       const coreMat = new THREE.MeshStandardMaterial({
         color: '#ffffff',
         emissive: cfg.color,
-        emissiveIntensity: 2.2, // bright glow
+        emissiveIntensity: 2.2,
         roughness: 0.1
       });
       const core = new THREE.Mesh(coreGeo, coreMat);
       core.position.set(0.12, 0.68, 0.05);
       flowerGroup.add(core);
 
-      // Small floating particle light
       const pointLight = new THREE.PointLight(cfg.color, 0.8, 4, 1.8);
       pointLight.position.set(0.12, 0.88, 0.05);
       flowerGroup.add(pointLight);
 
-      // Continuous floating animation
-      gsap.to(flowerGroup.position, {
-        y: cfg.y + 0.12,
-        duration: 1.5 + Math.random() * 0.8,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut'
-      });
-
       this.scene.add(flowerGroup);
       this.monthlyFlowerMeshes.push(flowerGroup);
 
-      // Add a small 2D text overlay name that appears when hovering
       const label = document.createElement('div');
       label.className = 'glowing-node-label';
       label.id = `label-flower-${cfg.id}`;
-      label.innerText = `Flower ${cfg.id + 1}`; // e.g. Flower 1
+      label.innerText = `Flower ${cfg.id + 1}`;
       document.body.appendChild(label);
       flowerGroup.userData.htmlLabel = label;
     });

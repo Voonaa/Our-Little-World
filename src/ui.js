@@ -3,19 +3,29 @@ import { gsap } from 'gsap';
 import { audioInstance } from './audio.js';
 
 export class UIManager {
-  constructor(sceneManager, lightingManager, particlesManager, gardenManager) {
+  constructor(sceneManager, lightingManager, particlesManager, gardenManager, islandEnv, river) {
     this.sm = sceneManager;
     this.lm = lightingManager;
     this.pm = particlesManager;
     this.gm = gardenManager;
+    this.islandEnv = islandEnv;
+    this.river = river;
 
+    // UI overlays
     this.musicToggle = document.getElementById('music-toggle');
     this.splashScreen = document.getElementById('splash-screen');
-    this.startBtn = document.getElementById('start-btn');
     this.loadingText = document.getElementById('loading-text');
     this.loadingBar = document.getElementById('loading-bar');
-    this.hud = document.getElementById('hud');
     
+    // Tap starter screen (audio unlocker)
+    this.tapScreen = document.getElementById('tap-screen');
+    this.tapBtn = document.getElementById('tap-btn');
+    
+    // Scene 10 title overlay
+    this.titleScreen = document.getElementById('title-screen');
+    this.enterBtn = document.getElementById('enter-btn');
+
+    this.hud = document.getElementById('hud');
     this.memoryOverlay = document.getElementById('memory-overlay');
     this.closeMemoryBtn = document.getElementById('close-memory-btn');
     this.memoryTitle = document.getElementById('memory-title');
@@ -27,7 +37,7 @@ export class UIManager {
     this.mouse = new THREE.Vector2();
     this.hoveredNode = null;
 
-    // Define 7 monthly timeline flowers
+    // Timeline stories
     this.flowerTimeline = [
       {
         id: 0,
@@ -94,13 +104,13 @@ export class UIManager {
       }
     ];
 
-    // Define 6 cinematic chapters configurations
+    // Interactive chapters parameters
     this.chapters = [
       {
         id: 0,
         title: "Chapter 0: The Beginning",
         subtitle: "Separated by 900km, our worlds float in the same sky...",
-        camPos: { x: 0, y: 55, z: 65 },
+        camPos: { x: 0, y: 35, z: 55 },
         camTarget: { x: 0, y: 2, z: 0 },
         weather: 'dawn'
       },
@@ -141,7 +151,7 @@ export class UIManager {
         title: "Chapter 5: Future Dreams",
         subtitle: "Under the Indonesian stars, we write the rest of our map...",
         camPos: { x: 0, y: 9, z: 22 },
-        camTarget: { x: 0, y: 24, z: -32 }, // look up to sky constellations
+        camTarget: { x: 0, y: 24, z: -32 },
         weather: 'stars'
       }
     ];
@@ -160,7 +170,32 @@ export class UIManager {
   }
 
   bindEvents() {
-    this.startBtn.addEventListener('click', () => this.enterWorld());
+    // 1. Initial click starter trigger
+    this.tapBtn.addEventListener('click', () => {
+      this.tapScreen.classList.add('fade-out');
+      // Starts the 10-Scene Cinematic Timeline
+      this.playOpeningCinematic();
+    });
+
+    // 2. Scene 10 final Enter trigger
+    this.enterBtn.addEventListener('click', () => {
+      // Fade out Title screen overlay
+      this.titleScreen.classList.add('hidden');
+      document.body.classList.remove('cinematic');
+
+      // Pan camera to standard interactive layout looking at Agus's house
+      gsap.to(this.sm.camera.position, { x: -28, y: 15, z: 32, duration: 2.2, ease: 'power2.out' });
+      gsap.to(this.sm.controls.target, {
+        x: -15, y: 3.5, z: -5,
+        duration: 2.2,
+        ease: 'power2.out',
+        onComplete: () => {
+          this.sm.controls.enabled = true; // hand controls to user
+          this.hud.classList.remove('hidden');
+          this.hud.classList.add('fade-in');
+        }
+      });
+    });
 
     this.musicToggle.addEventListener('click', () => {
       const isMuted = audioInstance.toggle();
@@ -168,7 +203,6 @@ export class UIManager {
       else this.musicToggle.classList.remove('muted');
     });
 
-    // Wire up Weather Select Panel
     const weatherButtons = document.querySelectorAll('.time-btn');
     weatherButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -176,14 +210,12 @@ export class UIManager {
         e.target.classList.add('active');
         const weather = e.target.getAttribute('data-time');
         
-        // Transition lighting & sound states
         this.lm.transitionTo(weather);
         this.pm.updateEnvironmentLights(weather);
         this.updateWindowGlows(weather);
       });
     });
 
-    // Wire up Chapter Selection Panel
     const chapterButtons = document.querySelectorAll('.chapter-btn');
     chapterButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -192,12 +224,9 @@ export class UIManager {
       });
     });
 
-    // Polaroid close
     this.closeMemoryBtn.addEventListener('click', () => {
       this.memoryOverlay.classList.add('hidden');
       this.sm.controls.enabled = true;
-      
-      // Reset camera target
       gsap.to(this.sm.controls.target, { x: 0, y: 4, z: 0, duration: 1.5, ease: 'power2.out' });
       document.body.classList.remove('cinematic');
     });
@@ -207,7 +236,6 @@ export class UIManager {
     window.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: true });
   }
 
-  // Update cottage glass windows emissive rates per weather state
   updateWindowGlows(theme) {
     this.sm.scene.traverse(child => {
       if (child.material && child.material.emissive && child.material.emissiveIntensity !== undefined) {
@@ -232,13 +260,15 @@ export class UIManager {
         clearInterval(interval);
         
         this.loadingBar.style.width = '100%';
-        this.loadingText.innerText = 'World is Configured';
+        this.loadingText.innerText = 'Establishment Successful';
         
-        gsap.to(this.loadingBar.parentElement, { opacity: 0, height: 0, duration: 0.5, delay: 0.3 });
-        gsap.to(this.loadingText, { opacity: 0, duration: 0.5, delay: 0.3, onComplete: () => {
-          this.startBtn.classList.remove('hidden');
-          gsap.fromTo(this.startBtn, { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: 'back.out(1.7)' });
-        }});
+        gsap.to(this.splashScreen, {
+          opacity: 0, duration: 0.8, delay: 0.3, onComplete: () => {
+            this.splashScreen.classList.add('hidden');
+            // Unhide click catcher catcher
+            this.tapScreen.classList.remove('hidden');
+          }
+        });
       } else {
         this.loadingBar.style.width = `${progress}%`;
         this.loadingText.innerText = `Establishing connection Batam ↔ Pamulang... ${progress}%`;
@@ -246,64 +276,212 @@ export class UIManager {
     }, 120);
   }
 
-  enterWorld() {
-    audioInstance.start();
-    this.musicToggle.classList.remove('muted');
-    this.splashScreen.classList.add('fade-out');
-    this.playCinematicIntro();
-  }
-
-  playCinematicIntro() {
+  // --- CHAPTER 0: THE BEGINNING CINEMATIC TIMELINE (SCENES 1-10) ---
+  playOpeningCinematic() {
     this.isCinematicActive = true;
-    document.body.classList.add('cinematic');
+    document.body.classList.add('cinematic'); // slide in black letterbox bars
 
-    const tl = gsap.timeline({
+    const mainTimeline = gsap.timeline({
       onComplete: () => {
+        // Trigger Scene 10 layout menu
+        this.titleScreen.classList.remove('hidden');
         this.isCinematicActive = false;
-        this.sm.controls.enabled = true;
-        document.body.classList.remove('cinematic');
-        
-        this.hud.classList.remove('hidden');
-        this.hud.classList.add('fade-in');
       }
     });
 
     const captions = document.getElementById('captions');
-    const subTimeline = gsap.timeline();
+    
+    // Animate camera starts at (0, 100, 120) looking down
+    this.sm.camera.position.set(0, 100, 120);
+    this.sm.controls.target.set(-15, 30, -1.0); // look at Agus's island center
 
-    const playSub = (text, delay, dur) => {
-      subTimeline.to(captions, { opacity: 0, duration: 0.3, onComplete: () => { captions.innerText = text; } }, delay)
-        .to(captions, { opacity: 1, duration: 0.5 })
-        .to(captions, { opacity: 0, duration: 0.4 }, `+=${dur}`);
-    };
+    // --- Scene 1: Silence initially, then at 2.0s soft piano and wind fade in ---
+    mainTimeline.to({}, { duration: 2.0 }) // 2s black/silence delay
+      .add(() => {
+        // Initialize Audio context on user gesture click
+        audioInstance.start();
+        this.musicToggle.classList.remove('muted');
+        
+        // Fade in wind sound and drift stardust particles
+        audioInstance.fadeAmbiance('dawn');
+        gsap.to(this.pm.petalsMat, { opacity: 0.25, duration: 3.0 });
+      });
 
-    playSub("Agus in Pamulang. Cesya in Batam Center.", 0.8, 3.5);
-    playSub("900 kilometers apart, floating in the same digital sky...", 5.2, 4.0);
-    playSub("Explore the chapters and flowers to discover their stories.", 10.0, 3.8);
+    // --- Scene 2: Single glowing star appears and caption displays ---
+    mainTimeline.add(() => {
+      // Scale up falling star mesh high in the sky
+      this.pm.starGroup.position.set(-15, 60, -1.0);
+      gsap.to(this.pm.starGroup.scale, { x: 1, y: 1, z: 1, duration: 1.5, ease: 'back.out' });
+      gsap.to(this.pm.starLight, { intensity: 1.5, duration: 1.5 });
 
-    // Initial cinematic sweeping camera path around both LDR islands
-    tl.to(this.sm.camera.position, { x: 0, y: 45, z: 65, duration: 6.0, ease: 'power2.inOut' })
-      .to(this.sm.camera.position, { x: -26, y: 15, z: 28, duration: 5.0, ease: 'sine.inOut' })
-      .to(this.sm.camera.position, { x: -8, y: 6.0, z: 18, duration: 4.0, ease: 'power1.inOut' });
+      captions.innerText = "There are more than 8 billion people in this world...";
+      gsap.to(captions, { opacity: 1, duration: 1.0 });
+    }, "+=0.5")
+    .to(captions, { opacity: 0, duration: 0.8, delay: 3.5 });
 
-    tl.to(this.sm.controls.target, { x: -15, y: 3.5, z: -5, duration: 15.0, ease: 'sine.inOut' }, 0);
+    // --- Scene 3: Star falls slowly. Camera follows star downward ---
+    mainTimeline.add(() => {
+      // Star falls from y=60 to y=3.02
+      gsap.to(this.pm.starGroup.position, { y: 3.02, duration: 5.5, ease: 'sine.inOut' });
+      
+      // Camera tracks star descend
+      gsap.to(this.sm.camera.position, { x: -15, y: 15, z: 25, duration: 5.5, ease: 'sine.inOut' });
+      gsap.to(this.sm.controls.target, { x: -15, y: 12, z: -1.0, duration: 5.5, ease: 'sine.inOut' });
+      
+      // Clouds fade in
+      gsap.to(this.pm.cloudMat, { opacity: 0.3, duration: 4.5 });
+      
+      // Sunlight visible (transition lights/fog to dawn)
+      this.lm.transitionTo('dawn', 5.5);
+    }, "+=0.2");
+
+    // --- Scene 4: Star lands on Agus's island. Magical wave spreads & models scale in ---
+    mainTimeline.add(() => {
+      // Bright landing impact flash
+      gsap.to(this.pm.starLight, { intensity: 8.0, duration: 0.1, yoyo: true, repeat: 1 });
+      
+      // Collapse star core
+      gsap.to(this.pm.starGroup.scale, {
+        x: 0, y: 0, z: 0, duration: 0.4, onComplete: () => {
+          this.pm.starLight.intensity = 0;
+        }
+      });
+
+      // Growth waves: animate uGrowth uniform to raise grass/flowers
+      gsap.to(this.gm.uniforms.uGrowth, { value: 1.0, duration: 3.5, ease: 'power2.out' });
+
+      // Grow river winding mesh
+      gsap.to(this.river.mesh.scale, { x: 1.0, y: 0.05, z: 1.0, duration: 2.8, ease: 'power1.out' });
+
+      // Grow Agus cottage
+      gsap.to(this.islandEnv.cottage.scale, { x: 1, y: 1, z: 1, duration: 2.2, ease: 'back.out(1.15)' });
+      
+      // Grow Agus study desk
+      gsap.to(this.islandEnv.desk.scale, { x: 1, y: 1, z: 1, duration: 2.0, ease: 'back.out(1.15)', delay: 0.5 });
+      
+      // Grow Cesya telescope observ deck
+      gsap.to(this.islandEnv.telescope.scale, { x: 1, y: 1, z: 1, duration: 2.2, ease: 'back.out(1.15)', delay: 0.7 });
+
+      // Staggered grow trees
+      this.islandEnv.trees.forEach((tree, idx) => {
+        gsap.to(tree.scale, {
+          x: tree.userData.targetScale,
+          y: tree.userData.targetScale,
+          z: tree.userData.targetScale,
+          duration: 1.8,
+          ease: 'back.out(1.2)',
+          delay: 0.3 + idx * 0.25
+        });
+      });
+
+      // Staggered grow path stepping stones
+      this.islandEnv.steppingStones.forEach((stone, idx) => {
+        gsap.to(stone.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: 'back.out(1.5)', delay: 0.1 + idx * 0.1 });
+      });
+
+      // Grow bridge planks sequentially from Agus to Cesya
+      this.islandEnv.bridgePlanks.forEach((plank, idx) => {
+        gsap.to(plank.scale, { x: 1, y: 1, z: 1, duration: 0.6, ease: 'back.out(1.2)', delay: 0.05 + idx * 0.04 });
+      });
+
+      // Animate bridge guides opacity
+      this.islandEnv.bridgeRopes.forEach(guide => {
+        gsap.to(guide.material, { opacity: 0.35, duration: 1.5 });
+      });
+
+      // Clouds / petals / fireflies opacity full fade-in
+      gsap.to(this.pm.cloudMat, { opacity: 0.35, duration: 2.5 });
+      gsap.to(this.pm.petalsMat, { opacity: 0.8, duration: 2.5 });
+      gsap.to(this.pm.fireflyMat, { opacity: 0.9, duration: 2.5 });
+      
+      // Fade in steam/sparks
+      gsap.to(this.pm.steamMat, { opacity: 0.15, duration: 2.5 });
+      gsap.to(this.pm.sparkMat, { opacity: 0.85, duration: 2.5 });
+
+      // Scale in butterflies and birds
+      this.pm.butterflies.forEach(b => gsap.to(b.scale, { x: 1.1, y: 1.1, z: 1.1, duration: 2.0, ease: 'power2.out' }));
+      this.pm.birds.forEach(b => gsap.to(b.scale, { x: 1.0, y: 1.0, z: 1.0, duration: 2.0, ease: 'power2.out' }));
+    }, "+=5.5");
+
+    // --- Scene 5: Camera slowly rises showing the complete beautiful island ---
+    mainTimeline.add(() => {
+      gsap.to(this.sm.camera.position, { x: -6, y: 11, z: 28, duration: 4.5, ease: 'sine.inOut' });
+      gsap.to(this.sm.controls.target, { x: 0, y: 3.5, z: 0, duration: 4.5, ease: 'sine.inOut' });
+    }, "+=1.0");
+
+    // --- Scene 6: Subtitle displays date text ---
+    mainTimeline.add(() => {
+      captions.innerText = "Our world began on...";
+      gsap.to(captions, { opacity: 1, duration: 0.8 });
+    }, "+=0.2")
+    .add(() => {
+      captions.innerHTML = "Our world began on<br><span style='font-family:var(--font-serif); font-size:1.6rem; color:#ffa64d;'>25 December 2025</span>";
+    }, "+=1.5")
+    .to(captions, { opacity: 0, duration: 0.8, delay: 3.2 });
+
+    // --- Scene 7: Camera flies close to the first flower circling it ---
+    mainTimeline.add(() => {
+      // Bloom/grow the first flower (id:0)
+      const flower0 = this.gm.monthlyFlowerMeshes[0];
+      gsap.to(flower0.scale, { x: 1, y: 1, z: 1, duration: 2.0, ease: 'back.out(1.5)' });
+
+      // Zoom camera to circle around flower0
+      gsap.to(this.sm.camera.position, { x: -14.2, y: 4.0, z: 2.2, duration: 4.5, ease: 'sine.inOut' });
+      gsap.to(this.sm.controls.target, { x: -16.0, y: 3.2, z: -0.2, duration: 4.5, ease: 'sine.inOut' });
+    }, "+=0.2");
+
+    // --- Scene 8: Camera flies close to cozy cottage (smoke rises, windows glow) ---
+    mainTimeline.add(() => {
+      // Bloom/grow all remaining timeline flowers
+      this.gm.monthlyFlowerMeshes.forEach((fl, idx) => {
+        if (idx > 0) {
+          gsap.to(fl.scale, { x: 1, y: 1, z: 1, duration: 2.0, ease: 'back.out(1.3)', delay: idx * 0.15 });
+        }
+      });
+
+      // Animate chimney smoke and window glows
+      gsap.to(this.pm.smokeMat, { opacity: 0.22, duration: 2.5 });
+      this.updateWindowGlows('golden'); // sets emissive to golden level
+
+      // Sweep camera around cottage
+      gsap.to(this.sm.camera.position, { x: -11.5, y: 5.5, z: 2.5, duration: 4.5, ease: 'sine.inOut' });
+      gsap.to(this.sm.controls.target, { x: -14.8, y: 4.2, z: -2.8, duration: 4.5, ease: 'sine.inOut' });
+    }, "+=4.5");
+
+    // --- Scene 9: Camera reaches wooden door, door opens, screen fades to white ---
+    mainTimeline.add(() => {
+      // Approach front door
+      gsap.to(this.sm.camera.position, { x: -15.0, y: 4.15, z: 0.35, duration: 3.0, ease: 'power1.in' });
+      gsap.to(this.sm.controls.target, { x: -15.0, y: 4.1, z: -2.8, duration: 3.0, ease: 'power1.in' });
+
+      // Rotate door mesh open automatically
+      gsap.to(this.islandEnv.door.rotation, { y: Math.PI / 1.8, duration: 2.0, ease: 'power2.inOut', delay: 1.0 });
+
+      // Fade white Title screen overlay in (representing bright hearth light blinding lens)
+      gsap.to(this.titleScreen, {
+        css: { opacity: 1 },
+        duration: 1.5,
+        ease: 'power1.in',
+        delay: 1.8,
+        onStart: () => {
+          this.titleScreen.classList.remove('hidden');
+        }
+      });
+    }, "+=4.5");
   }
 
-  // Jump camera directly to selected Chapter composition
   jumpToChapter(idx) {
     if (this.isCinematicActive || !this.sm.controls.enabled) return;
 
     this.activeChapterIdx = idx;
     const chap = this.chapters[idx];
 
-    // Highlight active chapter button
     const buttons = document.querySelectorAll('.chapter-btn');
     buttons.forEach((b, i) => {
       if (i === idx) b.classList.add('active');
       else b.classList.remove('active');
     });
 
-    // Trigger subtitles narration
     const captions = document.getElementById('captions');
     gsap.to(captions, {
       opacity: 0, duration: 0.3, onComplete: () => {
@@ -312,13 +490,11 @@ export class UIManager {
       }
     });
 
-    // Update Weather to match Chapter mood automatically
     const targetWeatherBtn = document.querySelector(`.time-btn[data-time="${chap.weather}"]`);
     if (targetWeatherBtn) {
       targetWeatherBtn.click();
     }
 
-    // Animate camera position and target
     this.sm.controls.enabled = false;
     gsap.to(this.sm.camera.position, {
       x: chap.camPos.x,
@@ -340,12 +516,10 @@ export class UIManager {
     });
   }
 
-  // Raycaster checks: Project coordinates on monthly timeline flowers
   updateRaycast() {
     if (this.isCinematicActive || !this.sm.controls.enabled) return;
 
     this.raycaster.setFromCamera(this.mouse, this.sm.camera);
-    // Raycast standard flower meshes
     const intersects = this.raycaster.intersectObjects(this.gm.monthlyFlowerMeshes, true);
 
     if (intersects.length > 0) {
@@ -363,7 +537,6 @@ export class UIManager {
         this.hoveredNode = obj;
         document.body.style.cursor = 'pointer';
         
-        // Scale up float animation
         gsap.to(this.hoveredNode.scale, { x: 1.35, y: 1.35, z: 1.35, duration: 0.3, ease: 'back.out(2)' });
         this.hoveredNode.userData.htmlLabel.classList.add('visible');
       }
@@ -426,7 +599,6 @@ export class UIManager {
     this.sm.controls.enabled = false;
     document.body.classList.add('cinematic');
 
-    // Pan camera to look directly down on the selected flower
     const targetCam = new THREE.Vector3()
       .copy(this.hoveredNode.position)
       .add(new THREE.Vector3(
@@ -474,7 +646,6 @@ export class UIManager {
 
   // --- HTML5 Watercolor drawings inside Polaroid frames ---
 
-  // Flower 0: Spark
   drawSparkIllustration(ctx, w, h) {
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, '#ffebeb');
@@ -484,7 +655,6 @@ export class UIManager {
 
     this.drawWatercolorSplatter(ctx, w/2, h/2, 55, 'rgba(255, 51, 102, 0.45)');
     
-    // Glowing core
     const core = ctx.createRadialGradient(w/2, h/2, 2, w/2, h/2, 25);
     core.addColorStop(0, '#ffffff');
     core.addColorStop(0.5, '#ff66aa');
@@ -493,7 +663,6 @@ export class UIManager {
     ctx.beginPath(); ctx.arc(w/2, h/2, 25, 0, Math.PI*2); ctx.fill();
   }
 
-  // Flower 1: Sharing Coffee Mugs
   drawCoffeeIllustration(ctx, w, h) {
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, '#fbf8f3');
@@ -504,21 +673,16 @@ export class UIManager {
     this.drawWatercolorSplatter(ctx, w/3, h/2 + 20, 35, '#8c6239');
     this.drawWatercolorSplatter(ctx, w * 0.66, h/2 + 20, 35, '#8c6239');
 
-    // Coffee Mugs Silhouettes
     ctx.fillStyle = '#fff';
     ctx.strokeStyle = '#6d4c2d';
     ctx.lineWidth = 3;
     
-    // Mug Left
     ctx.beginPath(); ctx.roundRect(w/3 - 20, h/2 - 10, 40, 40, [4, 4, 15, 15]); ctx.fill(); ctx.stroke();
-    // Handle
     ctx.beginPath(); ctx.arc(w/3 - 22, h/2 + 10, 8, -Math.PI/2, Math.PI/2, true); ctx.stroke();
 
-    // Mug Right
     ctx.beginPath(); ctx.roundRect(w * 0.66 - 20, h/2 - 10, 40, 40, [4, 4, 15, 15]); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.arc(w * 0.66 + 22, h/2 + 10, 8, -Math.PI/2, Math.PI/2, false); ctx.stroke();
 
-    // Steam
     ctx.strokeStyle = 'rgba(140, 98, 57, 0.4)';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -527,7 +691,6 @@ export class UIManager {
     ctx.stroke();
   }
 
-  // Flower 2: Heart parcel
   drawHeartParcelIllustration(ctx, w, h) {
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, '#fef0f3');
@@ -537,7 +700,6 @@ export class UIManager {
 
     this.drawWatercolorSplatter(ctx, w/2, h/2, 45, 'rgba(255,102,204,0.3)');
 
-    // Parcel box
     ctx.fillStyle = '#d7ccc8';
     ctx.strokeStyle = '#8d6e63';
     ctx.lineWidth = 3;
@@ -545,7 +707,6 @@ export class UIManager {
     ctx.roundRect(w/2 - 35, h/2 - 25, 70, 50, 5);
     ctx.fill(); ctx.stroke();
 
-    // Heart stamp
     ctx.fillStyle = '#ff3366';
     ctx.beginPath();
     ctx.moveTo(w/2, h/2 - 5);
@@ -554,7 +715,6 @@ export class UIManager {
     ctx.fill();
   }
 
-  // Flower 3: Soft rain hitting window
   drawRainIllustration(ctx, w, h) {
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, '#1c2833');
@@ -564,7 +724,6 @@ export class UIManager {
 
     this.drawWatercolorSplatter(ctx, w/2, h/2, 60, 'rgba(52, 152, 219, 0.25)');
 
-    // Cottage window silhouette
     ctx.strokeStyle = 'rgba(255,255,255,0.15)';
     ctx.lineWidth = 4;
     ctx.strokeRect(w/2 - 50, h/2 - 50, 100, 100);
@@ -573,7 +732,6 @@ export class UIManager {
     ctx.moveTo(w/2 - 50, h/2); ctx.lineTo(w/2 + 50, h/2);
     ctx.stroke();
 
-    // Rain lines
     ctx.strokeStyle = 'rgba(255,255,255,0.4)';
     ctx.lineWidth = 1;
     for (let i = 0; i < 15; i++) {
@@ -586,7 +744,6 @@ export class UIManager {
     }
   }
 
-  // Flower 4: Stars & Constellations
   drawConstellationIllustration(ctx, w, h) {
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, '#040613');
@@ -596,7 +753,6 @@ export class UIManager {
 
     this.drawWatercolorSplatter(ctx, w/2, h/2, 50, 'rgba(135, 206, 250, 0.2)');
 
-    // Draw a small custom constellation
     const starCoords = [
       {x: w/2 - 60, y: h/2 + 30},
       {x: w/2 - 20, y: h/2 - 20},
@@ -604,7 +760,6 @@ export class UIManager {
       {x: w/2 + 70, y: h/2 + 40}
     ];
 
-    // Constellation lines
     ctx.strokeStyle = 'rgba(255,255,224,0.4)';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -614,14 +769,12 @@ export class UIManager {
     }
     ctx.stroke();
 
-    // Star hubs
     ctx.fillStyle = '#ffffe0';
     starCoords.forEach(sc => {
       ctx.beginPath(); ctx.arc(sc.x, sc.y, 4, 0, Math.PI*2); ctx.fill();
     });
   }
 
-  // Flower 5: Airplane flying through clouds
   drawFlightIllustration(ctx, w, h) {
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, '#f9d5e5');
@@ -632,18 +785,16 @@ export class UIManager {
     this.drawWatercolorSplatter(ctx, w/3, h/2, 45, 'rgba(255,255,255,0.4)');
     this.drawWatercolorSplatter(ctx, w * 0.7, h/2 + 10, 50, 'rgba(255,255,255,0.4)');
 
-    // Airplane silhouette
     ctx.fillStyle = '#5c4e4e';
     ctx.beginPath();
     ctx.moveTo(w/2 - 40, h/2 - 10);
-    ctx.quadraticCurveTo(w/2 - 10, h/2 - 15, w/2 + 30, h/2 - 5); // fuselage
+    ctx.quadraticCurveTo(w/2 - 10, h/2 - 15, w/2 + 30, h/2 - 5);
     ctx.lineTo(w/2 + 40, h/2 - 8);
     ctx.lineTo(w/2 + 38, h/2 - 2);
     ctx.lineTo(w/2 - 40, h/2);
     ctx.closePath();
     ctx.fill();
 
-    // Wings
     ctx.beginPath();
     ctx.moveTo(w/2, h/2 - 6);
     ctx.lineTo(w/2 - 15, h/2 - 28);
@@ -652,7 +803,6 @@ export class UIManager {
     ctx.fill();
   }
 
-  // Flower 6: Two islands and bridge
   drawBridgeIllustration(ctx, w, h) {
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, '#ffe3e8');
@@ -662,18 +812,15 @@ export class UIManager {
 
     this.drawWatercolorSplatter(ctx, w/2, h/2, 50, 'rgba(255, 102, 170, 0.25)');
 
-    // Left island silhouette
     ctx.fillStyle = '#655459';
     ctx.beginPath();
     ctx.arc(w/4 - 10, h - 20, 45, 0, Math.PI*2);
     ctx.fill();
 
-    // Right island silhouette
     ctx.beginPath();
     ctx.arc(w * 0.75 + 10, h - 15, 40, 0, Math.PI*2);
     ctx.fill();
 
-    // Glowing Bridge Line
     ctx.strokeStyle = '#ffe480';
     ctx.shadowColor = '#ffa64d';
     ctx.shadowBlur = 10;
@@ -683,11 +830,9 @@ export class UIManager {
     ctx.quadraticCurveTo(w/2, h - 45, w * 0.75 - 10, h - 32);
     ctx.stroke();
     
-    // reset shadow
     ctx.shadowBlur = 0;
   }
 
-  // Watercolor splat helper
   drawWatercolorSplatter(ctx, x, y, maxRadius, color) {
     ctx.save();
     ctx.fillStyle = color;

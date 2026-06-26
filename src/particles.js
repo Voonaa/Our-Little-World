@@ -8,8 +8,6 @@ export class AtmosphereParticles {
     this.smokeWorldPos = smokeWorldPos;
     this.coffeeWorldPositions = coffeeWorldPositions;
     this.bridgeParticlesPos = bridgeParticlesPos;
-    this.agusCenter = new THREE.Vector3(-15, 0, -5);
-    this.cesyaCenter = new THREE.Vector3(15, 0.8, 5);
 
     this.petalTexture = Textures.createPetal();
     this.glowTexture = Textures.createGlow();
@@ -22,17 +20,37 @@ export class AtmosphereParticles {
     this.steamSystem = null;
     this.bridgeSparksSystem = null;
     this.constellations = null;
+    this.constellationStars = null;
     
     this.cloudsList = [];
     this.butterflies = [];
     this.smokeSystem = null;
     this.birds = [];
+    
+    // Materials cached for opacity fades in cinematic
+    this.cloudMat = null;
+    this.petalsMat = null;
+    this.fireflyMat = null;
+    this.smokeMat = null;
+    this.rainMat = null;
+    this.steamMat = null;
+    this.sparkMat = null;
+    this.constellationMat = null;
+    this.constellationStarsMat = null;
 
     this.numPetals = 200;
     this.numFireflies = 100;
     this.numRain = 750;
     this.numSteam = 24;
     this.numSparks = 60;
+
+    this.agusCenter = new THREE.Vector3(-15, 0, -5);
+    this.cesyaCenter = new THREE.Vector3(15, 0.8, 5);
+
+    // Dynamic Star Group (Scene 2 & 3 falling star)
+    this.starGroup = null;
+    this.starLight = null;
+    this.createFallingStar();
 
     this.createClouds();
     this.createFallingPetals();
@@ -41,20 +59,71 @@ export class AtmosphereParticles {
     this.createChimneySmoke();
     this.createBirds();
     
-    // Upgrades
     this.createRainfall();
     this.createCoffeeSteam();
     this.createBridgeSparks();
     this.createConstellationLines();
+    
+    // Set all initial material opacities to 0.0 for cinematic entry
+    this.initializeOpacitiesToZero();
+  }
+
+  // Cinematic Star Mesh (Scenes 2 & 3)
+  createFallingStar() {
+    this.starGroup = new THREE.Group();
+    
+    // Star core mesh
+    const starGeo = new THREE.SphereGeometry(0.32, 16, 16);
+    const starMat = new THREE.MeshBasicMaterial({ color: '#ffffe5' });
+    const starMesh = new THREE.Mesh(starGeo, starMat);
+    this.starGroup.add(starMesh);
+
+    // Star glow envelope
+    const haloGeo = new THREE.SphereGeometry(0.8, 16, 16);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: '#ffeaad',
+      transparent: true,
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending
+    });
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    this.starGroup.add(halo);
+
+    // PointLight to cast light downwards as it falls
+    this.starLight = new THREE.PointLight('#ffeaad', 0, 25, 1.8);
+    this.starLight.castShadow = true;
+    this.starLight.shadow.bias = -0.001;
+    this.starGroup.add(this.starLight);
+
+    // Set initial position high above Agus's island
+    this.starGroup.position.set(-15, 65, -1.0);
+    this.starGroup.scale.set(0.0001, 0.0001, 0.0001); // start collapsed
+    this.scene.add(this.starGroup);
+  }
+
+  initializeOpacitiesToZero() {
+    if (this.cloudMat) this.cloudMat.opacity = 0;
+    if (this.petalsMat) this.petalsMat.opacity = 0;
+    if (this.fireflyMat) this.fireflyMat.opacity = 0;
+    if (this.smokeMat) this.smokeMat.opacity = 0;
+    if (this.rainMat) this.rainMat.opacity = 0;
+    if (this.steamMat) this.steamMat.opacity = 0;
+    if (this.sparkMat) this.sparkMat.opacity = 0;
+    if (this.constellationMat) this.constellationMat.opacity = 0;
+    if (this.constellationStarsMat) this.constellationStarsMat.opacity = 0;
+    
+    // Hide birds/butterflies scale initially
+    this.birds.forEach(b => b.scale.set(0.0001, 0.0001, 0.0001));
+    this.butterflies.forEach(b => b.scale.set(0.0001, 0.0001, 0.0001));
   }
 
   createClouds() {
     const cloudGroup = new THREE.Group();
-    const cloudMat = new THREE.MeshBasicMaterial({
+    this.cloudMat = new THREE.MeshBasicMaterial({
       color: '#fff5f0',
       map: this.cloudTexture,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0, // starts transparent
       depthWrite: false,
       blending: THREE.NormalBlending
     });
@@ -63,7 +132,7 @@ export class AtmosphereParticles {
     for (let i = 0; i < numClouds; i++) {
       const size = 15 + Math.random() * 8;
       const cloudGeo = new THREE.PlaneGeometry(size, size);
-      const cloud = new THREE.Mesh(cloudGeo, cloudMat);
+      const cloud = new THREE.Mesh(cloudGeo, this.cloudMat);
       
       const angle = (i / numClouds) * Math.PI * 2 + Math.random() * 0.4;
       const radius = 28 + Math.random() * 6;
@@ -119,16 +188,16 @@ export class AtmosphereParticles {
 
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     
-    const mat = new THREE.PointsMaterial({
+    this.petalsMat = new THREE.PointsMaterial({
       size: 0.4,
       map: this.petalTexture,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0,
       depthWrite: false,
       blending: THREE.NormalBlending
     });
 
-    this.petalsSystem = new THREE.Points(geo, mat);
+    this.petalsSystem = new THREE.Points(geo, this.petalsMat);
     this.petalsSystem.userData = { velocities, rotationSeeds };
     this.scene.add(this.petalsSystem);
   }
@@ -143,17 +212,14 @@ export class AtmosphereParticles {
       const r = Math.random();
       
       if (r < 0.4) {
-        // Agus's Island garden center
         x = -15 + (Math.random() - 0.5) * 12;
         z = -5 + (Math.random() - 0.5) * 12;
         y = 3.2 + Math.random() * 3.5;
       } else if (r < 0.8) {
-        // Cesya's Island garden center
         x = 15 + (Math.random() - 0.5) * 10;
         z = 5 + (Math.random() - 0.5) * 10;
         y = 2.2 + Math.random() * 3.5;
       } else {
-        // Bridge area
         x = (Math.random() - 0.5) * 20;
         z = (Math.random() - 0.5) * 6;
         y = 2.5 + Math.random() * 4.0;
@@ -183,7 +249,7 @@ export class AtmosphereParticles {
       size: 0.6,
       map: this.glowTexture,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0,
       color: '#ccff33',
       blending: THREE.AdditiveBlending,
       depthWrite: false
@@ -209,7 +275,7 @@ export class AtmosphereParticles {
       });
 
       const wingGeo = new THREE.PlaneGeometry(0.32, 0.32);
-      wingGeo.translate(0.16, 0, 0); // hinge pivot
+      wingGeo.translate(0.16, 0, 0);
 
       const wingL = new THREE.Mesh(wingGeo, wingMat);
       wingL.rotation.y = Math.PI;
@@ -222,7 +288,7 @@ export class AtmosphereParticles {
       body.rotation.x = Math.PI / 2;
       butterfly.add(body);
 
-      butterfly.scale.set(1.1, 1.1, 1.1);
+      butterfly.scale.set(0.0001, 0.0001, 0.0001); // start collapsed
       
       const island = i < 3 ? this.agusCenter : this.cesyaCenter;
       const angle = (i / numButterflies) * Math.PI * 2;
@@ -267,16 +333,16 @@ export class AtmosphereParticles {
     }
 
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const mat = new THREE.PointsMaterial({
+    this.smokeMat = new THREE.PointsMaterial({
       size: 1.1,
       map: this.glowTexture,
       color: '#beb4bd',
       transparent: true,
-      opacity: 0.22,
+      opacity: 0,
       depthWrite: false
     });
 
-    this.smokeSystem = new THREE.Points(geo, mat);
+    this.smokeSystem = new THREE.Points(geo, this.smokeMat);
     this.smokeSystem.userData = { smokeSeeds };
     this.scene.add(this.smokeSystem);
   }
@@ -300,6 +366,7 @@ export class AtmosphereParticles {
         42 + Math.random() * 12,
         -55 - Math.random() * 25
       );
+      bird.scale.set(0.0001, 0.0001, 0.0001); // start collapsed
 
       bird.userData = {
         speed: 0.11 + Math.random() * 0.05,
@@ -314,22 +381,19 @@ export class AtmosphereParticles {
     this.scene.add(birdGroup);
   }
 
-  // --- AAA UPGRADE SYSTEMS ---
-
-  // 1. Rainfall System (Fades in during 'rain' weather)
   createRainfall() {
     const geo = new THREE.BufferGeometry();
     const positions = new Float32Array(this.numRain * 3);
     const rainSeeds = [];
 
     for (let i = 0; i < this.numRain; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 60;     // X
-      positions[i * 3 + 1] = -50;                        // Y (start hidden)
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 60; // Z
+      positions[i * 3] = (Math.random() - 0.5) * 60;
+      positions[i * 3 + 1] = -50;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 60;
 
       rainSeeds.push({
         vy: -0.8 - Math.random() * 0.6,
-        vx: -0.05 - Math.random() * 0.05 // rain blows slightly left
+        vx: -0.05 - Math.random() * 0.05
       });
     }
 
@@ -339,7 +403,7 @@ export class AtmosphereParticles {
       size: 0.22,
       color: '#9bc2e6',
       transparent: true,
-      opacity: 0.0, // start hidden, faded in dynamically
+      opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending
     });
@@ -349,7 +413,6 @@ export class AtmosphereParticles {
     this.scene.add(this.rainSystem);
   }
 
-  // 2. Coffee Cup Steam (Vapor rising from two porch coffee cups)
   createCoffeeSteam() {
     if (this.coffeeWorldPositions.length === 0) return;
 
@@ -357,14 +420,12 @@ export class AtmosphereParticles {
     const positions = new Float32Array(this.numSteam * 3);
     const steamSeeds = [];
 
-    // Distribute steam particles between the two cups
     for (let i = 0; i < this.numSteam; i++) {
       const cupIdx = i % this.coffeeWorldPositions.length;
       const cupPos = this.coffeeWorldPositions[cupIdx];
 
       positions[i * 3] = cupPos.x;
-      positions[i * 3 + 1] = cupPos.y - 100; // start inactive
-      positions[i * 3 + 2] = cupPos.z;
+      positions[i * 3 + 1] = cupPos.y - 100;
 
       steamSeeds.push({
         cupIndex: cupIdx,
@@ -378,22 +439,21 @@ export class AtmosphereParticles {
 
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    const mat = new THREE.PointsMaterial({
+    this.steamMat = new THREE.PointsMaterial({
       size: 0.35,
       map: this.glowTexture,
       color: '#fdfaf2',
       transparent: true,
-      opacity: 0.15,
+      opacity: 0,
       depthWrite: false,
       blending: THREE.NormalBlending
     });
 
-    this.steamSystem = new THREE.Points(geo, mat);
+    this.steamSystem = new THREE.Points(geo, this.steamMat);
     this.steamSystem.userData = { steamSeeds };
     this.scene.add(this.steamSystem);
   }
 
-  // 3. Bridge Sparks (glowing magical particles floating at LDR gap ends)
   createBridgeSparks() {
     if (this.bridgeParticlesPos.length === 0) return;
 
@@ -401,7 +461,6 @@ export class AtmosphereParticles {
     const positions = new Float32Array(this.numSparks * 3);
     const sparkSeeds = [];
 
-    // Distribute sparks between the two endpoints of the gap
     for (let i = 0; i < this.numSparks; i++) {
       const endIdx = i % 2;
       const endPos = this.bridgeParticlesPos[endIdx];
@@ -414,7 +473,6 @@ export class AtmosphereParticles {
         endIndex: endIdx,
         age: Math.random() * 2.5,
         lifetime: 2.0 + Math.random() * 1.0,
-        // Sparks float inwards towards the gap center
         vx: (endIdx === 0 ? 0.04 : -0.04) + (Math.random() - 0.5) * 0.02,
         vy: 0.02 + Math.random() * 0.04,
         vz: (Math.random() - 0.5) * 0.03
@@ -423,47 +481,39 @@ export class AtmosphereParticles {
 
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    const mat = new THREE.PointsMaterial({
+    this.sparkMat = new THREE.PointsMaterial({
       size: 0.5,
       map: this.glowTexture,
-      color: '#ffa64d', // warm golden sparks
+      color: '#ffa64d',
       transparent: true,
-      opacity: 0.85,
+      opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending
     });
 
-    this.bridgeSparksSystem = new THREE.Points(geo, mat);
+    this.bridgeSparksSystem = new THREE.Points(geo, this.sparkMat);
     this.bridgeSparksSystem.userData = { sparkSeeds };
     this.scene.add(this.bridgeSparksSystem);
   }
 
-  // 4. Constellation Lines in Sky (Fades in during 'stars' weather)
   createConstellationLines() {
-    // We create line segments connecting 4 nodes in the background sky
-    const p0 = new THREE.Vector3(-15, 25, -30); // above Agus's island
+    const p0 = new THREE.Vector3(-15, 25, -30);
     const p1 = new THREE.Vector3(-6, 32, -35);
     const p2 = new THREE.Vector3(6, 33, -35);
-    const p3 = new THREE.Vector3(15, 27, -30);  // above Cesya's island
+    const p3 = new THREE.Vector3(15, 27, -30);
 
-    const points = [
-      p0, p1,
-      p1, p2,
-      p2, p3
-    ];
-
+    const points = [p0, p1, p1, p2, p2, p3];
     const geo = new THREE.BufferGeometry().setFromPoints(points);
     this.constellationMat = new THREE.LineBasicMaterial({
       color: '#ffcc99',
       transparent: true,
-      opacity: 0.0, // starts hidden
+      opacity: 0,
       linewidth: 1.5
     });
 
     this.constellations = new THREE.LineSegments(geo, this.constellationMat);
     this.scene.add(this.constellations);
 
-    // Glowing star hubs
     const hubGeo = new THREE.BufferGeometry();
     const hubPositions = new Float32Array([
       p0.x, p0.y, p0.z,
@@ -478,7 +528,7 @@ export class AtmosphereParticles {
       map: this.glowTexture,
       color: '#ffffff',
       transparent: true,
-      opacity: 0.0,
+      opacity: 0,
       depthWrite: false,
       blending: THREE.AdditiveBlending
     });
@@ -487,9 +537,7 @@ export class AtmosphereParticles {
     this.scene.add(this.constellationStars);
   }
 
-  // Animate particle changes dynamically when weather settings change
   updateEnvironmentLights(theme) {
-    // 1. Fireflies update
     let fireflyOpacity = 0.9;
     let fireflyColor = '#ccff33';
     let fireflySize = 0.6;
@@ -507,22 +555,27 @@ export class AtmosphereParticles {
       fireflyColor = '#ccff33';
     }
 
-    gsap.to(this.fireflyMat, { opacity: fireflyOpacity, size: fireflySize, duration: 2.5, ease: 'power2.out' });
-    const col = new THREE.Color(fireflyColor);
-    gsap.to(this.fireflyMat.color, { r: col.r, g: col.g, b: col.b, duration: 2.5 });
+    // Protect check in case timeline runs before fade-in completes
+    if (this.fireflyMat) {
+      gsap.to(this.fireflyMat, { opacity: fireflyOpacity, size: fireflySize, duration: 2.5, ease: 'power2.out' });
+      const col = new THREE.Color(fireflyColor);
+      gsap.to(this.fireflyMat.color, { r: col.r, g: col.g, b: col.b, duration: 2.5 });
+    }
 
-    // 2. Rain visual update
-    const targetRainOpacity = theme === 'rain' ? 0.75 : 0.0;
-    gsap.to(this.rainMat, { opacity: targetRainOpacity, duration: 2.0 });
+    if (this.rainMat) {
+      const targetRainOpacity = theme === 'rain' ? 0.75 : 0.0;
+      gsap.to(this.rainMat, { opacity: targetRainOpacity, duration: 2.0 });
+    }
 
-    // 3. Constellations update
-    const targetStarOpacity = theme === 'stars' ? 0.65 : 0.0;
-    gsap.to(this.constellationMat, { opacity: targetStarOpacity, duration: 2.5 });
-    gsap.to(this.constellationStarsMat, { opacity: targetStarOpacity === 0 ? 0.0 : 0.9, duration: 2.5 });
+    if (this.constellationMat) {
+      const targetStarOpacity = theme === 'stars' ? 0.65 : 0.0;
+      gsap.to(this.constellationMat, { opacity: targetStarOpacity, duration: 2.5 });
+      gsap.to(this.constellationStarsMat, { opacity: targetStarOpacity === 0 ? 0.0 : 0.9, duration: 2.5 });
+    }
   }
 
   update(time, delta) {
-    // 1. Clouds float
+    // Animate clouds
     this.cloudsList.forEach(cloud => {
       cloud.userData.angle += cloud.userData.speed;
       const bob = Math.sin(time * cloud.userData.bobSpeed + cloud.userData.seed) * cloud.userData.bobHeight;
@@ -534,8 +587,8 @@ export class AtmosphereParticles {
       cloud.rotation.z += 0.00035;
     });
 
-    // 2. Cherry blossoms drift
-    if (this.petalsSystem) {
+    // Animate petals
+    if (this.petalsSystem && this.petalsMat.opacity > 0.01) {
       const pos = this.petalsSystem.geometry.attributes.position;
       const vels = this.petalsSystem.userData.velocities;
       const rot = this.petalsSystem.userData.rotationSeeds;
@@ -558,8 +611,8 @@ export class AtmosphereParticles {
       pos.needsUpdate = true;
     }
 
-    // 3. Fireflies drift
-    if (this.firefliesSystem) {
+    // Animate fireflies
+    if (this.firefliesSystem && this.fireflyMat.opacity > 0.01) {
       const pos = this.firefliesSystem.geometry.attributes.position;
       const seeds = this.firefliesSystem.userData.fireflySeeds;
 
@@ -573,8 +626,9 @@ export class AtmosphereParticles {
       pos.needsUpdate = true;
     }
 
-    // 4. Butterflies fly
+    // Animate butterflies
     this.butterflies.forEach(b => {
+      if (b.scale.x < 0.01) return; // skip animation if collapsed
       const ud = b.userData;
       ud.wingL.rotation.y = Math.PI - Math.sin(time * ud.flapSpeed) * 0.9;
       ud.wingR.rotation.y = Math.sin(time * ud.flapSpeed) * 0.9;
@@ -597,8 +651,8 @@ export class AtmosphereParticles {
       }
     });
 
-    // 5. Chimney smoke rising
-    if (this.smokeSystem) {
+    // Animate smoke
+    if (this.smokeSystem && this.smokeMat.opacity > 0.01) {
       const pos = this.smokeSystem.geometry.attributes.position;
       const seeds = this.smokeSystem.userData.smokeSeeds;
 
@@ -621,8 +675,9 @@ export class AtmosphereParticles {
       pos.needsUpdate = true;
     }
 
-    // 6. Birds flying
+    // Animate birds
     this.birds.forEach(bird => {
+      if (bird.scale.x < 0.01) return;
       const ud = bird.userData;
       bird.position.x += ud.speed;
       
@@ -639,9 +694,7 @@ export class AtmosphereParticles {
       posAttr.needsUpdate = true;
     });
 
-    // --- AAA UPGRADE ANIMATIONS ---
-
-    // 7. Rain falling
+    // Animate rain
     if (this.rainSystem && this.rainMat.opacity > 0.01) {
       const pos = this.rainSystem.geometry.attributes.position;
       const seeds = this.rainSystem.userData.rainSeeds;
@@ -653,7 +706,6 @@ export class AtmosphereParticles {
         rx += s.vx;
         ry += s.vy;
 
-        // Reset rain particle if it hits the ground clouds level
         if (ry < -4.0) {
           rx = (Math.random() - 0.5) * 60;
           ry = 18.0 + Math.random() * 12;
@@ -664,8 +716,8 @@ export class AtmosphereParticles {
       pos.needsUpdate = true;
     }
 
-    // 8. Coffee Cup Steam rising
-    if (this.steamSystem) {
+    // Animate steam
+    if (this.steamSystem && this.steamMat.opacity > 0.01) {
       const pos = this.steamSystem.geometry.attributes.position;
       const seeds = this.steamSystem.userData.steamSeeds;
 
@@ -691,8 +743,8 @@ export class AtmosphereParticles {
       pos.needsUpdate = true;
     }
 
-    // 9. Bridge Gap Sparks swirling
-    if (this.bridgeSparksSystem && this.bridgeParticlesPos.length > 0) {
+    // Animate sparks
+    if (this.bridgeSparksSystem && this.sparkMat.opacity > 0.01) {
       const pos = this.bridgeSparksSystem.geometry.attributes.position;
       const seeds = this.bridgeSparksSystem.userData.sparkSeeds;
 
@@ -703,14 +755,13 @@ export class AtmosphereParticles {
         let sx = pos.getX(i); let sy = pos.getY(i); let sz = pos.getZ(i);
 
         if (s.age >= s.lifetime) {
-          // Recycle back to corresponding bridge edge
           const startPos = this.bridgeParticlesPos[s.endIndex];
           sx = startPos.x;
           sy = startPos.y;
           sz = startPos.z;
           s.age = 0;
         } else {
-          sx += s.vx + Math.sin(time * 3.5 + i) * 0.02; // swirly sine wave offset
+          sx += s.vx + Math.sin(time * 3.5 + i) * 0.02;
           sy += s.vy;
           sz += s.vz + Math.cos(time * 3.5 + i) * 0.02;
         }
@@ -719,9 +770,8 @@ export class AtmosphereParticles {
       pos.needsUpdate = true;
     }
 
-    // 10. Stars constellation slow twinkling
+    // Animate constellations
     if (this.constellations && this.constellationMat.opacity > 0.01) {
-      // Modulate line brightness
       this.constellationMat.opacity = 0.35 + Math.sin(time * 1.8) * 0.12;
     }
   }

@@ -18,11 +18,11 @@
     <div class="cinematic-bar top"></div>
     <div class="cinematic-bar bottom"></div>
 
-    <!-- Start / Loading Screen -->
+    <!-- 1. Initial Loading Screen -->
     <div id="splash-screen" class="overlay-screen active">
       <div class="splash-content">
         <h1 class="splash-title">Our Little World</h1>
-        <p class="splash-subtitle">A collection of memories & love drifting in the dawn sky</p>
+        <p class="splash-subtitle">A collection of memories & love drifting in the sky</p>
         
         <div class="loading-container">
           <div class="loading-bar-bg">
@@ -30,8 +30,29 @@
           </div>
           <span id="loading-text" class="loading-text">Establishing connection...</span>
         </div>
+      </div>
+    </div>
 
-        <button id="start-btn" class="start-btn hidden">Enter Our World</button>
+    <!-- 2. Tap-to-Begin Screen (Captures gesture to unlock Web Audio context) -->
+    <div id="tap-screen" class="overlay-screen black hidden">
+      <div class="tap-content">
+        <span class="tap-hint">[ Wear headphones for the best experience ]</span>
+        <button id="tap-btn" class="tap-btn">Click to begin the story</button>
+      </div>
+    </div>
+
+    <!-- 3. Scene 10 Final Title Screen Overlay -->
+    <div id="title-screen" class="title-overlay-screen hidden">
+      <div class="title-content">
+        <h1 class="title-main">OUR LITTLE WORLD</h1>
+        <p class="title-sub">A world that grows with our love.</p>
+        
+        <div class="title-details">
+          <span class="title-names">Agus ❤️ Cesya</span>
+          <span class="title-since">Since 25 December 2025</span>
+        </div>
+
+        <button id="enter-btn" class="enter-btn">Enter Our World</button>
       </div>
     </div>
 

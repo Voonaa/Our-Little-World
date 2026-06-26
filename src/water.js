@@ -130,7 +130,8 @@ export class FlowingRiver {
 
     // Make only the top half of the tube visible or flatten it slightly
     this.mesh = new THREE.Mesh(riverGeometry, this.material);
-    this.mesh.scale.set(1.0, 0.05, 1.0); // Flatten the tube into a shallow curved river bed
+    // Flatten the tube into a shallow curved river bed, starting collapsed for growth wave
+    this.mesh.scale.set(0.0001, 0.0001, 0.0001);
     this.mesh.position.y = 0.15; // Set slightly above base
     this.mesh.receiveShadow = true;
     
