@@ -1,0 +1,661 @@
+:root {
+  --color-dawn-light: #fff5e6;
+  --color-dawn-pink: #ffd1dc;
+  --color-dawn-gold: #ffb84d;
+  --bg-glass: rgba(255, 255, 255, 0.08);
+  --border-glass: rgba(255, 255, 255, 0.15);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  --font-serif: 'Cinzel', serif;
+  --font-sans: 'Outfit', sans-serif;
+  --font-cursive: 'Pinyon Script', cursive;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0b0c10;
+  font-family: var(--font-sans);
+  color: #fff;
+}
+
+/* WebGL Canvas */
+#webgl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  display: block;
+}
+
+/* Cinematic Black Bars */
+.cinematic-bar {
+  position: fixed;
+  left: 0;
+  width: 100%;
+  height: 8vh;
+  background-color: #000;
+  z-index: 10;
+  transition: transform 1.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.cinematic-bar.top {
+  top: 0;
+  transform: translateY(-100%);
+}
+
+.cinematic-bar.bottom {
+  bottom: 0;
+  transform: translateY(100%);
+}
+
+body.cinematic .cinematic-bar.top {
+  transform: translateY(0);
+}
+
+body.cinematic .cinematic-bar.bottom {
+  transform: translateY(0);
+}
+
+/* Splash / Loading Screen */
+.overlay-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #111424 0%, #1e152a 50%, #2e1a2f 100%);
+  opacity: 1;
+  transition: opacity 1.5s ease;
+}
+
+.overlay-screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.4) 100%);
+  pointer-events: none;
+}
+
+.overlay-screen.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash-content {
+  text-align: center;
+  z-index: 2;
+  max-width: 600px;
+  padding: 40px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.splash-title {
+  font-family: var(--font-serif);
+  font-size: 3rem;
+  font-weight: 400;
+  letter-spacing: 6px;
+  margin-bottom: 12px;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.splash-subtitle {
+  font-size: 0.95rem;
+  font-weight: 300;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 40px;
+}
+
+/* Loading Bar */
+.loading-container {
+  width: 100%;
+  max-width: 350px;
+  margin-bottom: 20px;
+}
+
+.loading-bar-bg {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.loading-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-dawn-pink), var(--color-dawn-gold));
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px rgba(255, 184, 77, 0.5);
+}
+
+.loading-text {
+  font-size: 0.8rem;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+}
+
+/* Premium Pulsing Button */
+.start-btn {
+  background: linear-gradient(135deg, #ffd1dc, #ffb84d);
+  color: #1e152a;
+  border: none;
+  padding: 16px 45px;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  border-radius: 40px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(255, 184, 77, 0.3);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: pulse-glow 2s infinite ease-in-out;
+  text-transform: uppercase;
+}
+
+.start-btn:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 12px 30px rgba(255, 184, 77, 0.5);
+}
+
+.start-btn:active {
+  transform: scale(0.98) translateY(1px);
+}
+
+.start-btn.hidden {
+  display: none;
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 184, 77, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(255, 184, 77, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 184, 77, 0);
+  }
+}
+
+/* HUD Overlay Styling */
+.hud-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+  transition: opacity 1s ease;
+}
+
+.hud-container.hidden {
+  opacity: 0;
+}
+
+.hud-container.fade-in {
+  opacity: 1;
+}
+
+/* Buttons and Panels require pointer events */
+.hud-btn, .time-controller, .memory-tracker, .close-btn {
+  pointer-events: auto;
+}
+
+/* Music Toggle Button (Top Right) */
+.music-btn {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-glass);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.music-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+}
+
+.music-btn svg {
+  width: 20px;
+  height: 20px;
+  transition: opacity 0.3s;
+}
+
+.music-btn.muted svg {
+  opacity: 0.4;
+}
+
+/* Music Wave Animation when playing */
+.music-wave {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 16px;
+  height: 14px;
+  position: absolute;
+}
+
+.music-wave span {
+  display: block;
+  width: 2px;
+  background-color: #ffb84d;
+  height: 2px;
+  border-radius: 1px;
+  animation: bounce 1.2s infinite ease-in-out alternate;
+}
+
+.music-wave span:nth-child(2) { animation-delay: -0.4s; }
+.music-wave span:nth-child(3) { animation-delay: -0.8s; }
+.music-wave span:nth-child(4) { animation-delay: -0.2s; }
+
+.music-btn.muted .music-wave {
+  display: none;
+}
+
+.music-btn.muted svg {
+  display: block;
+}
+
+.music-btn:not(.muted) svg {
+  display: none;
+}
+
+@keyframes bounce {
+  10% { height: 4px; }
+  50% { height: 14px; }
+  90% { height: 6px; }
+  100% { height: 14px; }
+}
+
+/* Atmosphere/Time Controller (Bottom Center) */
+.time-controller {
+  position: absolute;
+  bottom: 12vh;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-glass);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-glass);
+  padding: 8px 12px;
+  border-radius: 40px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  z-index: 15;
+  transition: all 0.5s ease;
+}
+
+.hud-label {
+  font-family: var(--font-serif);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  padding-left: 12px;
+}
+
+.time-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.time-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 8px 18px;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 1px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.time-btn:hover {
+  color: #fff;
+}
+
+.time-btn.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffb84d;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+  text-shadow: 0 0 8px rgba(255, 184, 77, 0.3);
+}
+
+/* Memory Tracker Panel (Top Left) */
+.memory-tracker {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-glass);
+  padding: 12px 20px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 200px;
+  z-index: 15;
+}
+
+.tracker-title {
+  font-family: var(--font-serif);
+  font-size: 0.75rem;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+}
+
+.tracker-progress-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tracker-progress {
+  flex-grow: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tracker-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-dawn-pink), var(--color-dawn-gold));
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 0 5px rgba(255, 184, 77, 0.4);
+}
+
+.tracker-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffb84d;
+}
+
+/* Cinematic Captions / Subtitles (Bottom Center) */
+.cinematic-caption {
+  position: absolute;
+  bottom: 11vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  max-width: 700px;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: 1.15rem;
+  line-height: 1.6;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  min-height: 3em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 12;
+  transition: opacity 0.5s ease;
+}
+
+/* Polaroid Memory Overlay Screen */
+.memory-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(11, 12, 16, 0.6);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  z-index: 90;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+.memory-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.polaroid-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 25px;
+  transform: translateY(0);
+  transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.memory-overlay.hidden .polaroid-wrapper {
+  transform: translateY(50px);
+}
+
+/* The actual polaroid card */
+.polaroid {
+  background: #fbfbf9;
+  padding: 18px 18px 24px 18px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 5px 15px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  transform: rotate(-1.5deg);
+  transition: transform 0.3s ease;
+}
+
+.polaroid:hover {
+  transform: rotate(0deg) scale(1.02);
+}
+
+.polaroid-image-container {
+  width: 100%;
+  height: 320px;
+  background: #252830;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Dynamic watercolor vector inside Polaroid */
+.polaroid-illustration {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  transition: filter 0.5s ease;
+}
+
+.polaroid-content {
+  padding-top: 20px;
+  text-align: center;
+  color: #2b2b2b;
+}
+
+.memory-title {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.memory-date {
+  font-family: var(--font-cursive);
+  font-size: 1.8rem;
+  color: #ff85a2;
+  margin-bottom: 12px;
+  line-height: 1;
+}
+
+.memory-description {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #555;
+  padding: 0 10px;
+  font-weight: 400;
+}
+
+/* Polaroid Close Button */
+.close-btn {
+  background: var(--bg-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-glass);
+  color: #fff;
+  padding: 12px 30px;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.close-btn:active {
+  transform: translateY(1px);
+}
+
+/* HTML Canvas instructions overlay (small tooltips) */
+.glowing-node-label {
+  position: absolute;
+  z-index: 50;
+  pointer-events: none;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  background: rgba(11, 12, 16, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 4px 10px;
+  border-radius: 12px;
+  color: #ffb84d;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, -100%) scale(0.9);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+}
+
+.glowing-node-label.visible {
+  opacity: 1;
+  transform: translate(-50%, -125%) scale(1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .splash-title {
+    font-size: 2.2rem;
+  }
+  
+  .time-controller {
+    bottom: 14vh;
+    padding: 6px 8px;
+    gap: 8px;
+  }
+  
+  .time-btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+  }
+  
+  .hud-label {
+    display: none;
+  }
+  
+  .memory-tracker {
+    top: auto;
+    bottom: 14vh;
+    left: 20px;
+    width: 140px;
+    padding: 10px;
+  }
+  
+  .tracker-title {
+    font-size: 0.65rem;
+  }
+  
+  .music-btn {
+    top: 20px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+  }
+  
+  .polaroid {
+    width: 320px;
+  }
+  
+  .polaroid-image-container {
+    height: 260px;
+  }
+  
+  .memory-date {
+    font-size: 1.5rem;
+  }
+}

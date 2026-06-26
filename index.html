@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Our Little World | A Cinematic 3D Love Story</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Outfit:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- The WebGL Canvas -->
+    <canvas id="webgl"></canvas>
+
+    <!-- Cinematic Black Bars -->
+    <div class="cinematic-bar top"></div>
+    <div class="cinematic-bar bottom"></div>
+
+    <!-- Start / Loading Screen -->
+    <div id="splash-screen" class="overlay-screen active">
+      <div class="splash-content">
+        <h1 class="splash-title">Our Little World</h1>
+        <p class="splash-subtitle">A collection of memories & love drifting in the dawn sky</p>
+        
+        <div class="loading-container">
+          <div class="loading-bar-bg">
+            <div id="loading-bar" class="loading-bar"></div>
+          </div>
+          <span id="loading-text" class="loading-text">Preparing the world... 0%</span>
+        </div>
+
+        <button id="start-btn" class="start-btn hidden">Enter Our World</button>
+      </div>
+    </div>
+
+    <!-- Polaroid Memory Overlay -->
+    <div id="memory-overlay" class="memory-overlay hidden">
+      <div class="polaroid-wrapper">
+        <div class="polaroid">
+          <div class="polaroid-image-container">
+            <div id="polaroid-illustration" class="polaroid-illustration"></div>
+          </div>
+          <div class="polaroid-content">
+            <h2 id="memory-title" class="memory-title">First Day We Met</h2>
+            <p id="memory-date" class="memory-date">June 26, 2024</p>
+            <p id="memory-description" class="memory-description">Under the shade of the old willow, we talked for hours about everything and nothing. It felt like time stood still.</p>
+          </div>
+        </div>
+        <button id="close-memory-btn" class="close-btn">&times; Back to World</button>
+      </div>
+    </div>
+
+    <!-- HUD Overlay -->
+    <div id="hud" class="hud-container hidden">
+      <!-- Music Controller -->
+      <button id="music-toggle" class="hud-btn music-btn" aria-label="Toggle Music">
+        <svg viewBox="0 0 24 24" class="icon-music" fill="currentColor">
+          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+        </svg>
+        <span class="music-wave">
+          <span></span><span></span><span></span><span></span>
+        </span>
+      </button>
+
+      <!-- Time of Day Controller -->
+      <div class="time-controller">
+        <span class="hud-label">Atmosphere</span>
+        <div class="time-buttons">
+          <button id="time-dawn" class="time-btn active" data-time="dawn">Dawn</button>
+          <button id="time-day" class="time-btn" data-time="day">Day</button>
+          <button id="time-dusk" class="time-btn" data-time="dusk">Dusk</button>
+          <button id="time-night" class="time-btn" data-time="night">Night</button>
+        </div>
+      </div>
+
+      <!-- Quick Tour Guide / Memory Log -->
+      <div class="memory-tracker">
+        <span class="tracker-title">Memories Explored</span>
+        <div class="tracker-progress-wrapper">
+          <div class="tracker-progress">
+            <div id="tracker-fill" class="tracker-fill" style="width: 0%;"></div>
+          </div>
+          <span id="tracker-text" class="tracker-text">0 / 4</span>
+        </div>
+      </div>
+
+      <!-- Bottom Cinematic Captions / Emotional Text Prompts -->
+      <div id="captions" class="cinematic-caption"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
