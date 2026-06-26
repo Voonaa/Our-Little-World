@@ -29,6 +29,9 @@ export class IslandEnvironment {
     this.steppingStones = [];
     this.bridgePlanks = []; // wood planks
     this.bridgeRopes = [];  // rope and guide nodes
+    this.memoryTree = null;
+    this.windmill = null;
+    this.windmillSails = null;
     
     this.createAgusIsland();
     this.createCesyaIsland();
@@ -158,6 +161,9 @@ export class IslandEnvironment {
       group.add(stone);
       this.steppingStones.push(stone);
     }
+
+    this.createLargeMemoryTree(group);
+    this.createWindmill(group);
 
     this.islandGroup.add(group);
   }
@@ -607,11 +613,156 @@ export class IslandEnvironment {
     });
   }
 
+  createLargeMemoryTree(islandGroup) {
+    this.memoryTree = new THREE.Group();
+    this.memoryTree.position.set(-20.0, 3.0, -8.0);
+    this.memoryTree.scale.set(0.0001, 0.0001, 0.0001); // starts collapsed
+    this.memoryTree.userData = { targetScale: 1.5 }; // target scale is larger!
+
+    // Thick main trunk
+    const trunkGeo = new THREE.CylinderGeometry(0.35, 0.7, 6.0, 10);
+    this.applyNoiseToGeometry(trunkGeo, 0.15, 0.4);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: '#4a2f1b', map: this.woodTex, roughness: 0.9 });
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.position.y = 3.0;
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    this.memoryTree.add(trunk);
+
+    // Spreading organic branches
+    const branchMat = trunkMat.clone();
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI) / 2 + (Math.random() - 0.5) * 0.3;
+      const branchGeo = new THREE.CylinderGeometry(0.18, 0.3, 3.5, 6);
+      branchGeo.translate(0, 1.75, 0);
+      const branch = new THREE.Mesh(branchGeo, branchMat);
+      branch.position.set(0, 4.0, 0);
+      branch.rotation.z = 0.65;
+      branch.rotation.y = angle;
+      branch.castShadow = true;
+      this.memoryTree.add(branch);
+    }
+
+    // Huge glowing pink/cherry leaves
+    const leafMat = new THREE.MeshStandardMaterial({
+      color: '#ffa3b1',
+      emissive: '#ff66aa',
+      emissiveIntensity: 0.35,
+      roughness: 0.7,
+      shadowSide: THREE.DoubleSide
+    });
+
+    const leafGroup = new THREE.Group();
+    leafGroup.position.set(0, 5.8, 0);
+
+    const leafSpheres = [
+      { r: 3.2, x: 0, y: 1.0, z: 0 },
+      { r: 2.2, x: -1.8, y: 0.2, z: -1.2 },
+      { r: 2.2, x: 1.8, y: 0.2, z: 1.2 },
+      { r: 2.0, x: 1.2, y: 0.5, z: -1.8 },
+      { r: 2.0, x: -1.2, y: 0.5, z: 1.8 },
+      { r: 1.8, x: 0, y: 2.2, z: 0.8 }
+    ];
+
+    leafSpheres.forEach(cfg => {
+      const geo = new THREE.SphereGeometry(cfg.r, 12, 12);
+      this.applyNoiseToGeometry(geo, 0.18, 0.4);
+      const mesh = new THREE.Mesh(geo, leafMat);
+      mesh.position.set(cfg.x, cfg.y, cfg.z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      leafGroup.add(mesh);
+    });
+
+    this.memoryTree.add(leafGroup);
+
+    // Light inside the foliage
+    const treeLight = new THREE.PointLight('#ff66aa', 0.8, 8, 1.5);
+    treeLight.position.set(0, 5.0, 0);
+    this.memoryTree.add(treeLight);
+
+    islandGroup.add(this.memoryTree);
+    this.trees.push(this.memoryTree); // Grow in Scene 4
+  }
+
+  createWindmill(islandGroup) {
+    this.windmill = new THREE.Group();
+    this.windmill.position.set(-24.0, 3.0, -14.0);
+    this.windmill.scale.set(0.0001, 0.0001, 0.0001); // starts collapsed
+    this.windmill.userData = { targetScale: 1.0 };
+
+    // Tower base
+    const towerGeo = new THREE.CylinderGeometry(0.8, 1.5, 6.0, 8);
+    const towerMat = new THREE.MeshStandardMaterial({ color: '#d2b48c', map: this.woodTex, roughness: 0.85 });
+    const tower = new THREE.Mesh(towerGeo, towerMat);
+    tower.position.y = 3.0;
+    tower.castShadow = true;
+    tower.receiveShadow = true;
+    this.windmill.add(tower);
+
+    // Dome cabin head
+    const headGeo = new THREE.SphereGeometry(1.0, 8, 8);
+    headGeo.scale(1.0, 0.8, 1.2);
+    const headMat = new THREE.MeshStandardMaterial({ color: '#8b4513', roughness: 0.8 });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.set(0, 6.2, 0.2);
+    head.castShadow = true;
+    this.windmill.add(head);
+
+    // Sails hub
+    this.windmillSails = new THREE.Group();
+    this.windmillSails.position.set(0, 6.2, 1.2);
+
+    const pinGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.35, 8);
+    pinGeo.rotateX(Math.PI / 2);
+    const pin = new THREE.Mesh(pinGeo, headMat);
+    this.windmillSails.add(pin);
+
+    // 4 Sails
+    const sailWoodMat = new THREE.MeshStandardMaterial({ color: '#5c3a21', roughness: 0.9 });
+    const sailCanvasMat = new THREE.MeshStandardMaterial({
+      color: '#fcfcf0',
+      roughness: 0.9,
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide
+    });
+
+    for (let i = 0; i < 4; i++) {
+      const sailGroup = new THREE.Group();
+      sailGroup.rotation.z = (i * Math.PI) / 2;
+
+      // Wood spar
+      const sparGeo = new THREE.BoxGeometry(0.08, 3.2, 0.08);
+      sparGeo.translate(0, 1.6, 0);
+      const spar = new THREE.Mesh(sparGeo, sailWoodMat);
+      spar.castShadow = true;
+      sailGroup.add(spar);
+
+      // Canvas sail cloth
+      const clothGeo = new THREE.PlaneGeometry(0.55, 2.2);
+      clothGeo.translate(0.3, 2.0, 0);
+      const cloth = new THREE.Mesh(clothGeo, sailCanvasMat);
+      cloth.castShadow = true;
+      sailGroup.add(cloth);
+
+      this.windmillSails.add(sailGroup);
+    }
+
+    this.windmill.add(this.windmillSails);
+    islandGroup.add(this.windmill);
+    this.trees.push(this.windmill); // Grow in Scene 4
+  }
+
   update(time) {
     this.curtains.forEach((curtain, idx) => {
       const speed = 1.2 + idx * 0.3;
       const angle = Math.sin(time * speed) * 0.08;
       curtain.rotation.y = angle;
     });
+
+    if (this.windmillSails) {
+      this.windmillSails.rotation.z = time * 0.38; // rotate windmill sails
+    }
   }
 }

@@ -202,7 +202,6 @@ export class LightingManager {
     gsap.to(this.pathwayLight, { intensity: targetPathIntensity, duration, ease: 'power2.out' });
 
     gsap.to(this.renderer, { toneMappingExposure: target.exposure, duration, ease: 'power2.out' });
-    
-    gsap.to(document.body.style, { backgroundColor: target.fogColor, duration, ease: 'power2.out' });
+    gsap.to(document.body, { backgroundColor: target.fogColor, duration, ease: 'power2.out' });
   }
 }

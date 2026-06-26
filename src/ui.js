@@ -24,6 +24,7 @@ export class UIManager {
     // Scene 10 title overlay
     this.titleScreen = document.getElementById('title-screen');
     this.enterBtn = document.getElementById('enter-btn');
+    this.exploreHint = document.getElementById('explore-hint');
 
     this.hud = document.getElementById('hud');
     this.memoryOverlay = document.getElementById('memory-overlay');
@@ -177,25 +178,144 @@ export class UIManager {
       this.playOpeningCinematic();
     });
 
-    // 2. Scene 10 final Enter trigger
+    // 2. Scene 10 final Enter trigger (Chapter 1 seamless cinematic transition)
     this.enterBtn.addEventListener('click', () => {
-      // Fade out Title screen overlay
-      this.titleScreen.classList.add('hidden');
-      document.body.classList.remove('cinematic');
+      this.isCinematicActive = true;
+      this.sm.controls.enabled = false; // keep OrbitControls locked
+      
+      // Disable pointer events on the title container
+      this.titleScreen.style.pointerEvents = 'none';
 
-      // Pan camera to standard interactive layout looking at Agus's house
-      gsap.to(this.sm.camera.position, { x: -28, y: 15, z: 32, duration: 2.2, ease: 'power2.out' });
+      // Elements inside title screen
+      const titleMain = this.titleScreen.querySelector('.title-main');
+      const titleSub = this.titleScreen.querySelector('.title-sub');
+      const titleDetails = this.titleScreen.querySelector('.title-details');
+      const enterBtn = this.titleScreen.querySelector('.enter-btn');
+
+      // Stage 1: Fade out enter button, subtitle, details
+      gsap.to(enterBtn, { opacity: 0, y: 30, duration: 1.0, ease: 'power2.out' });
+      gsap.to(titleSub, { opacity: 0, y: 15, duration: 1.0, ease: 'power2.out', delay: 0.1 });
+      gsap.to(titleDetails, { opacity: 0, y: 15, duration: 1.0, ease: 'power2.out', delay: 0.2 });
+
+      // Instantly position camera high up in WebGL, hidden behind the white background overlay
+      this.sm.camera.position.set(0, 95, 105);
+      this.sm.controls.target.set(0, 0, 0);
+
+      // Fade up WebGL volumetric clouds opacity so they are ready
+      gsap.to(this.pm.cloudMat, { opacity: 0.9, duration: 1.8 });
+
+      // Sinking soundscape winds and rich arpeggiator piano chords
+      if (audioInstance.ctx) {
+        audioInstance.masterVolume.gain.cancelScheduledValues(audioInstance.ctx.currentTime);
+        audioInstance.masterVolume.gain.linearRampToValueAtTime(1.0, audioInstance.ctx.currentTime + 5.0);
+        if (audioInstance.windGain) {
+          audioInstance.windGain.gain.cancelScheduledValues(audioInstance.ctx.currentTime);
+          audioInstance.windGain.gain.linearRampToValueAtTime(0.09, audioInstance.ctx.currentTime + 5.0);
+        }
+      }
+
+      // Stage 2: Dissolve white background overlay (fade background to transparent)
+      gsap.to(this.titleScreen, {
+        backgroundColor: 'rgba(255, 255, 255, 0)',
+        duration: 4.5,
+        ease: 'power1.inOut',
+        delay: 0.4
+      });
+
+      // Stage 3: Animate main title text floating upward and dissolving
+      gsap.to(titleMain, {
+        y: -140,
+        opacity: 0,
+        duration: 4.0,
+        ease: 'power2.inOut',
+        delay: 0.6
+      });
+
+      // Dissolve particles swell around camera
+      gsap.to(this.pm.sparkMat, { opacity: 0.9, duration: 3.5, delay: 0.6 });
+
+      // Camera flight: Phase 1 - fly forward slowly through the sky/clouds
+      gsap.to(this.sm.camera.position, {
+        x: 0,
+        y: 45,
+        z: 60,
+        duration: 6.5,
+        ease: 'sine.inOut',
+        delay: 1.5
+      });
+
+      // Camera flight: Phase 2 - descend down to reveal the island & open clouds
+      gsap.to(this.sm.camera.position, {
+        x: -25,
+        y: 20,
+        z: 35,
+        duration: 6.0,
+        ease: 'sine.inOut',
+        delay: 8.0,
+        onStart: () => {
+          // Open clouds naturally by fading their opacity down
+          gsap.to(this.pm.cloudMat, { opacity: 0.35, duration: 4.5 });
+          // Sun rays start piercing (golden light transition)
+          this.lm.transitionTo('golden', 6.0);
+        }
+      });
+
+      // Camera flight: Phase 3 - Movie-quality slow panoramic orbit around the beautiful island
+      gsap.to(this.sm.camera.position, {
+        x: 25,
+        y: 12,
+        z: 28,
+        duration: 8.5,
+        ease: 'sine.inOut',
+        delay: 14.0
+      });
       gsap.to(this.sm.controls.target, {
-        x: -15, y: 3.5, z: -5,
-        duration: 2.2,
+        x: 0,
+        y: 3.2,
+        z: 0,
+        duration: 8.5,
+        ease: 'sine.inOut',
+        delay: 14.0
+      });
+
+      // Camera flight: Phase 4 - Gently descend to rest right above Agus's pathway stone road
+      gsap.to(this.sm.camera.position, {
+        x: -11.0,
+        y: 4.25,
+        z: 2.5,
+        duration: 5.5,
         ease: 'power2.out',
+        delay: 22.5
+      });
+      gsap.to(this.sm.controls.target, {
+        x: -15.0,
+        y: 4.1,
+        z: -2.8,
+        duration: 5.5,
+        ease: 'power2.out',
+        delay: 22.5,
         onComplete: () => {
-          this.sm.controls.enabled = true; // hand controls to user
-          this.hud.classList.remove('hidden');
-          this.hud.classList.add('fade-in');
+          // Clean up HTML title overlay completely
+          this.titleScreen.classList.add('hidden');
+          // Display the explorer prompt hint
+          this.exploreHint.classList.remove('hidden');
+          this.isCinematicActive = false; // allow clicks to register explore unlock
         }
       });
     });
+
+    // 3. Explore Phase Unlock (Click or touch anywhere to explore)
+    window.addEventListener('click', () => {
+      if (!this.isCinematicActive && this.exploreHint && !this.exploreHint.classList.contains('hidden')) {
+        this.unlockWorldExploration();
+      }
+    });
+
+    window.addEventListener('touchstart', () => {
+      if (!this.isCinematicActive && this.exploreHint && !this.exploreHint.classList.contains('hidden')) {
+        this.unlockWorldExploration();
+      }
+    }, { passive: true });
 
     this.musicToggle.addEventListener('click', () => {
       const isMuted = audioInstance.toggle();
@@ -274,6 +394,19 @@ export class UIManager {
         this.loadingText.innerText = `Establishing connection Batam ↔ Pamulang... ${progress}%`;
       }
     }, 120);
+  }
+
+  unlockWorldExploration() {
+    this.exploreHint.classList.add('hidden');
+    document.body.classList.remove('cinematic');
+
+    this.sm.controls.enabled = true; // Enable manual orbit controls
+    this.hud.classList.remove('hidden');
+    this.hud.classList.add('fade-in');
+
+    if (audioInstance.ctx) {
+      audioInstance.fadeAmbiance('golden'); // make sure beautiful nature soundscape plays
+    }
   }
 
   // --- CHAPTER 0: THE BEGINNING CINEMATIC TIMELINE (SCENES 1-10) ---
